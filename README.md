@@ -64,7 +64,7 @@ Defines a service which manages the life and properties of the docker container.
 By default, the container is set to run a dummy command. Docker will keep the container alive until this process stops (never). This is not ideal, but ensures that the project can be built by colcon without having the cache stuck in the docker build scope. It also allows troubleshooting of ROS2 executables in the container without having to shut it down. It is thus recommended that you update the command in the Makefile instead.
 
 ## Dockerfile
-Sources a base image, sets up user, and installs additional packages on the remote machine. Any system configuration that cannot be updated in compose.yaml should be changed in the Dockerfile.
+Sources a base image, sets up user, and installs additional packages on the container. Any system configuration that cannot be updated in compose.yaml should be changed in the Dockerfile.
 
 Currently this branch is imaged off of `dustynv/ros:humble-ros-base-l4t-r36.2.0`, which includes OpenCV, CUDA acceleration, and ROS2 humble on the AGX Orin.
 
