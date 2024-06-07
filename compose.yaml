@@ -1,0 +1,20 @@
+services:
+  humble_agx_orin:
+    container_name: humble_agx_orin
+    privileged: true
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: .
+        target: /home/ros/ws
+    command: ["tail", "-f", "/dev/null"]
+    build:
+      context: .
+      args:
+        USERNAME: ros
+        ROS_DOMAIN_ID: 0
+        ROS_AUTOMATIC_DISCOVERY_RANGE: SUBNET
+        RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+      platforms:
+        - "linux/arm64"
