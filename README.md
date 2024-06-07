@@ -13,10 +13,12 @@ ROS2 workspace template that provides all the necessary tools for developing on 
     b. Run `docker run --privileged --rm tonistiigi/binfmt --install all` once
 
 ## Setup
-1. Clone this repository on the host machine
-2. Remove the `.git` directory and rename parent folder
-3. Initialize a new git repository for your project
-4. Adapt `Makefile`, `Dockerfile`, `compose.yaml`, and `README.md` as necessary (details below)
+1. Click `Use this template`, select `Create a new repository`
+2. Make sure `Include all branches` is checked
+3. Configure the repository to your needs, and press create
+4. In your new repo, delete the `info` branch, any other branches you don't want, and rename `humble_agx_orin` to `main`
+5. Clone the new repo on your local machine
+6. Adapt `Makefile`, `Dockerfile`, `compose.yaml`, and `README.md` as necessary (details below)
 
 ## Makefile
 Set of directives to automate building, uploading, attaching, and maintaining remote/local containers/files. It is recommended to configure the command, user, hostname, and file locations on your remote and local machine via variables at the top of this file. These commands serve as the entry point for building and running your project.
