@@ -22,7 +22,8 @@ RUN apt-get update \
     && apt-get install -y tree tmux nano iputils-ping iperf3
 
 # Add ROS2 install to .bashrc
-    
+RUN echo "source /opt/ros/humble/install/setup.bash" >> /home/$USERNAME/.bashrc
+
 # Update ENVs
 ENV SHELL /bin/bash
 ENV RMW_IMPLEMENTATION rmw_fastrtps_cpp
