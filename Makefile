@@ -23,6 +23,7 @@ NC := \033[0m#     reset
 
 # Displays colored and timestamped log message
 # Args: color code, log text
+# FIXME: date is static and not dynamic
 define log
 	@echo "$(1)[$(shell date +%H:%M:%S)][$(shell echo $@ | tr '[:lower:]' '[:upper:]')] $(2)${NC}"
 endef
@@ -72,9 +73,9 @@ build-nc:
 run:
 	$(call log,${GN},"Stopping existing local containers")
 	@docker compose stop ${SERVICE_NAME}
-	$(call log,${GN},"Starting local container (emulation will be used if platform unsupported)")
+	$(call log,${GN},"Starting local container \(emulation will be used if platform unsupported\)")
 	@docker compose up -d ${SERVICE_NAME}
-	$(call log,${GN},"Running colcon build"")
+	$(call log,${GN},"Running colcon build")
 	$(call docexec,". /opt/ros/${ROS_DISTRO}/install/setup.bash && colcon build")
 	$(call log,${GN},"Starting command: ${COMMAND}")
 	$(call docexecd,". /opt/ros/${ROS_DISTRO}/install/setup.bash && ${COMMAND}")
