@@ -8,6 +8,13 @@ ARG ROS_DOMAIN_ID=0
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
+# Update ENVs
+ENV SHELL /bin/bash
+ENV RMW_IMPLEMENTATION rmw_fastrtps_cpp
+ENV FASTRTPS_DEFAULT_PROFILES_FILE /home/ros/ws/no_shm.xml
+ENV ROS_AUTOMATIC_DISCOVERY_RANGE $ROS_AUTOMATIC_DISCOVERY_RANGE
+ENV ROS_DOMAIN_ID $ROS_DOMAIN_ID
+
 # Create the user
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
@@ -23,13 +30,6 @@ RUN apt-get update \
 
 # Add ROS2 install to .bashrc
 RUN echo "source /opt/ros/humble/install/setup.bash" >> /home/$USERNAME/.bashrc
-
-# Update ENVs
-ENV SHELL /bin/bash
-ENV RMW_IMPLEMENTATION rmw_fastrtps_cpp
-ENV FASTRTPS_DEFAULT_PROFILES_FILE /home/ros/ws/no_shm.xml
-ENV ROS_AUTOMATIC_DISCOVERY_RANGE $ROS_AUTOMATIC_DISCOVERY_RANGE
-ENV ROS_DOMAIN_ID $ROS_DOMAIN_ID
 
 # Update default user
 USER $USERNAME
