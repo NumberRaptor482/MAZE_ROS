@@ -1,9 +1,9 @@
-# ROS2 Workspace Template for Jetson AGX Orin
-ROS2 workspace template that provides all the necessary tools for developing on remote and local containers. Intended for use in conjunction with a remote NVIDIA Jetson AGX Orin. Comes pre-configured with everything necessary for hardware acceleration on the Orin. Designed to be IDE and architecture agnostic for the host machine.
+# ROS2 Workspace Template for NVIDIA Jetson Orin SOCs
+ROS2 workspace template that provides all the necessary tools for developing on remote and local containers. Can be used in conjunction with either a remote NVIDIA Jetson AGX Orin or Jetson Orin Nano. Comes pre-configured with everything necessary for hardware acceleration on Orin SOCs. Designed to be IDE and architecture agnostic for the host machine.
 
 ## Prerequisites
 1. Host machine running Linux/MacOS with docker
-2. Remote DSBOARD AGX Orin flashed with default OS, accessible over LAN
+2. Remote AGX Orin or Orin Nano flashed with default OS, accessible over LAN
 3. Passwordless user with docker/sudo privileges on Orin (preferably named `robot`)
 4. Enable SSH passwordless login config option on remote
 5. Any x86 based host machines will require arm emulation support via QEMU:
@@ -16,17 +16,17 @@ ROS2 workspace template that provides all the necessary tools for developing on 
 1. Click `Use this template`, select `Create a new repository`
 2. Make sure `Include all branches` is checked
 3. Configure the repository to your needs, and press create
-4. In your new repo, delete the `info` branch, any other branches you don't want, and rename `humble_agx_orin` to `main`
+4. In your new repo, delete all the other branches and rename `humble_orin` to `main`
 5. Clone the new repo on your local machine
 6. Adapt `Makefile`, `Dockerfile`, `compose.yaml`, and `README.md` as necessary (details below)
 
 ## Makefile
-Set of directives to automate building, uploading, attaching, and maintaining remote/local containers/files. It is recommended to configure the command, user, hostname, and file locations on your remote and local machine via variables at the top of this file. These commands serve as the entry point for building and running your project.
+Set of directives to automate building, uploading, attaching, and maintaining remote/local containers/files. It is recommended to configure the command, user, hostname, and file paths on your remote and local machine via variables at the top of this file. These commands serve as the entry point for building and running your project.
 
 ### Usage
 **Local commands:**
 
-`make build`: builds the container locally with docker cache and runs colcon build
+`make build`: builds the container locally with docker cache
 
 `make build-nc`: same as above, but completely rebuilds without docker cache (takes a long time)
 
@@ -42,15 +42,17 @@ Set of directives to automate building, uploading, attaching, and maintaining re
 
 **Remote commands:**
 
-`make deploy` - stops, rebuilds and restarts persistent container on the remote machine
+`make deploy` - syncs files, stops, rebuilds and restarts persistent container on the remote machine
 
 `make deploy-nc` - same as above, but with remote colon cache directories removed
 
 `make deploy-rebuild` - same as above, but completely rebuilds without remote docker or colcon cache (takes a long time)
 
+`make deploy-loc` - (UNIMPLEMENTED) transfers existing docker image from host to remote and runs it (use with build/run to compile on host)
+
 `make attach-r` - attaches to bash shell in relevant container on remote machine
 
-`make attach-orin` - attaches SSH session to the AGX Orin itself (outside of container)
+`make attach-metal` - attaches SSH session to the Orin's OS (outside of container)
 
 `make stop-r` - stops relevant container on remote machine and disables persistence
 
@@ -58,15 +60,17 @@ Set of directives to automate building, uploading, attaching, and maintaining re
 
 *Note that make commands can be run sequentially, e.g. `make build run-nc attach`.*
 
+*You can also temporarily override config options by placing ARG="VALUE" at the end, e.g. `make deploy REMOTE_HOSTNAME="192.168.0.1"`.*
+
 ## compose.yaml
 Defines a service which manages the life and properties of the docker container. It is recommended to update system environment variables, and mount volumes here. It is effectively a replacement for anything that would normally be an argument to docker run. You can also define more services in this file to start any additional docker containers that your project might require.
 
-By default, the container is set to run a dummy command. Docker will keep the container alive until this process stops (never). This is not ideal, but ensures that the project can be built by colcon without having the cache stuck in the docker build scope. It also allows troubleshooting of ROS2 executables in the container without having to shut it down. It is thus recommended that you update the command in the Makefile instead.
+By default, the container is set to run a dummy command. Docker will keep the container alive until this process stops (never). This is not ideal, but ensures that the project can be built by colcon without having the cache stuck in the docker build scope. It also allows troubleshooting of ROS2 executables in the container without having to shut it down. It is thus recommended that you set the command in the Makefile instead.
 
 ## Dockerfile
 Sources a base image, sets up user, and installs additional packages on the container. Any system configuration that cannot be updated in compose.yaml should be changed in the Dockerfile.
 
-Currently this branch is imaged off of `dustynv/ros:humble-ros-base-l4t-r36.2.0`, which includes OpenCV, CUDA acceleration, and ROS2 humble on the AGX Orin.
+Currently this branch is imaged off of `dustynv/ros:humble-ros-base-l4t-r36.2.0`, which includes OpenCV, CUDA acceleration, and ROS2 humble.
 
 Alternate images can be found at https://github.com/dusty-nv/jetson-containers .
 
@@ -78,12 +82,14 @@ Alternate images can be found at https://github.com/dusty-nv/jetson-containers .
 5. As of the time this was written, the default build processes are understood to be CUI compliant
 
 ## WIP
-This repository is a work in progress. Potential upcoming features include:
-- Split a separate branch with support for the Jetson Nano (and maybe RPI)
+This repository is a work in progress. TODO list:
+- Implement `deploy-loc` command
 - Makefile options for purging unused images / old containers on remote/host machine
-- Additional Makefile options defining where code is compiled and which files persist
+- Additional Makefile options defining which files persist
+- Support for SSH key auth
 - Checks to ensure containers from other projects aren't affected by make commands
 - Change the dummy command for a more intelligent shell script that can monitor a ROS2 process
+- Checks to verify that processes actually completed successfully before moving on
 - Support for external arm based build server / docker registry
 
 Should you encounter problems or functionality, kindly submit an issue or PR.

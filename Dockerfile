@@ -20,6 +20,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y tree tmux nano iputils-ping iperf3
+
+# Add ROS2 install to .bashrc
     
 # Update ENVs
 ENV SHELL /bin/bash

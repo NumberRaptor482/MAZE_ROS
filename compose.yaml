@@ -1,6 +1,6 @@
 services:
-  humble_agx_orin:
-    container_name: humble_agx_orin
+  humble_orin:
+    container_name: humble_orin
     privileged: true
     network_mode: host
     restart: unless-stopped
