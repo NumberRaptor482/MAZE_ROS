@@ -46,13 +46,19 @@ Set of directives to automate building, uploading, attaching, and maintaining re
 
 `make deploy-nc` - same as above, but with remote colon cache directories removed
 
-`make deploy-rebuild` - same as above, but completely rebuilds without remote docker or colcon cache (takes a long time)
+`make deploy-rb` - same as above, but completely rebuilds without remote docker or colcon cache (takes a long time)
 
-`make deploy-loc` - (UNIMPLEMENTED) transfers existing docker image from host to remote and runs it (use with build/run to compile on host)
+`make deploy-nb` - deploys without building/clearing colcon (use this if compiling on host machine)
+
+`make img-tx` - transfers built docker image from host machine to target, assuming target is running its own docker registry server
+
+`make img-tx-c` - same as above, but compresses and sends the entire docker image directly without using a registry server (much slower)
+
+`make img-tx-ext` - transfers image by using an external registry server not hosted on the target machine
 
 `make attach-r` - attaches to bash shell in relevant container on remote machine
 
-`make attach-metal` - attaches SSH session to the Orin's OS (outside of container)
+`make attach-metal` - attaches SSH session to the Orin itself (outside of container)
 
 `make stop-r` - stops relevant container on remote machine and disables persistence
 
