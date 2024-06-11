@@ -18,3 +18,4 @@ services:
         RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       platforms:
         - "linux/arm64"
+    image: humble_orin:latest
