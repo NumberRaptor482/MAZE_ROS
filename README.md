@@ -66,7 +66,7 @@ Set of directives to automate building, uploading, attaching, and maintaining re
 
 *Note that make commands can be run sequentially, e.g. `make build run-nc attach`.*
 
-*You can also temporarily override config options by placing ARG="VALUE" at the end, e.g. `make deploy REMOTE_HOSTNAME="192.168.0.1"`.*
+*You can also temporarily override config options by placing ARG="VALUE" at the end, e.g. `make deploy REM_HOSTNAME="192.168.0.1"`.*
 
 ## compose.yaml
 Defines a service which manages the life and properties of the docker container. It is recommended to update system environment variables, and mount volumes here. It is effectively a replacement for anything that would normally be an argument to docker run. You can also define more services in this file to start any additional docker containers that your project might require.
