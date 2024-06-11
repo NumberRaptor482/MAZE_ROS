@@ -246,4 +246,4 @@ img-tx-ext:
 	@${DOCKER_CMD} push ${EXT_REG_IP}:${EXT_REG_PORT}/${CONTAINER_NAME}:latest
 	$(call log,${CY},Pulling container on target)
 	$(call sshexec,docker pull ${EXT_REG_IP}:${TGT_REG_PORT}/${CONTAINER_NAME}:latest)
-	$(call log,${CY},Transfer complete
+	$(call log,${CY},Transfer complete)
