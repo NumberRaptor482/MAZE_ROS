@@ -1,13 +1,19 @@
 # Configuration
-COMMAND := echo \"Hello, world!\"#  CHANGE ME for command to run on container init, escape any double quotes
-REMOTE_HOSTNAME := 127.0.0.1#  CHANGE ME to enable remote commands
+CMD := echo \"Hello, world!\"#  CHANGE ME for command to run on container init, escape double quotes, no commas
+REM_HOSTNAME := 127.0.0.1#  CHANGE ME to enable remote commands
 DOCKER_USER := ros
-REMOTE_USER := robot
+REM_USER := robot
 DOCKER_DIR := /home/${DOCKER_USER}/ws
-REMOTE_DIR := /home/${REMOTE_USER}/local_ws
+REM_DIR := /home/${REM_USER}/local_ws
 ROS_DISTRO := humble
 SERVICE_NAME := humble_orin
 CONTAINER_NAME := ${SERVICE_NAME}
+REM_TGT := ${REM_USER}@${REM_HOSTNAME}
+SSH_OPTS := -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no
+IMG_FILE := img_transfer_temp.tar
+TGT_REG_PORT := 5000
+EXT_REG_IP := 127.0.0.1# CHANGE ME to enable uploading to an external registry server
+EXT_REG_PORT := 5000
 
 # Terminal colors
 PL := \033[35;1m#  purple
@@ -18,29 +24,29 @@ RD := \033[31;1m#  red
 NC := \033[0m#     reset
 
 # Ensure Make doesn't look for files
-.PHONY: build build-nc run run-nc attach attach-r attach-metal stop stop-r status status-r deploy deploy-nc deploy-rebuild deploy-loc
+.PHONY: build build-nc run run-nc attach attach-r attach-metal stop stop-r status status-r deploy deploy-nc deploy-rb deploy-nb img-tx img-tx-c img-tx-ext
 
 
-# Displays colored and timestamped log message
+# Displays formatted log message
 # Args: color code, log text
 # FIXME: date is static and not dynamic
 define log
-	@echo "$(1)[$(shell date +%H:%M:%S)][$(shell echo $@ | tr '[:lower:]' '[:upper:]')] $(2)${NC}"
+	@printf "$(1)[$(shell echo $@ | tr '[:lower:]' '[:upper:]')] $(2)${NC}\n"
 endef
 
 # Same as above, but allows terminal color to bleed into subsequent STDOUT
 # Args: color code, log text
 define logb
-	@echo "$(1)[$(shell date +%H:%M:%S)][$(shell echo $@ | tr '[:lower:]' '[:upper:]')] $(2)"
+	@printf "\n$(1)[$(shell echo $@ | tr '[:lower:]' '[:upper:]')] $(2)\n"
 endef
 
 # Executes command(s) on the remote target
 # Args: command (; delineated if multiple, escape double quotes)
 define sshexec
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "$(1)"
+	@ssh -t ${SSH_OPTS} ${REM_TGT} "$(1)"
 endef
 
-# Executes command(s) in a running docker container, waiting for it to finish
+# Executes command in docker container
 # Args: command (&& delineated if multiple, escape double quotes)
 define docexec
 	@docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c "$(1)"
@@ -52,142 +58,191 @@ define docexecd
 	@docker exec -itd -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c "$(1)"
 endef
 
+# Runs command inside remote docker container via ssh connection
+# Args: command (&& delineated if multiple, escape double quotes)
+define sshdocexec
+	@ssh -t ${SSH_OPTS} ${REM_TGT} "docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \"$(1)\""
+endef
+
+# Same as above, but detaches instead of waiting
+# Args: command (&& delineated if multiple, escape double quotes)
+define sshdocexecd
+	@ssh -t ${SSH_OPTS} ${REM_TGT} "docker exec -itd -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \"$(1)\""
+endef
+
 
 # Builds the container locally with docker cache
 build:
-	$(call log,${PL},"Stopping existing local containers")
+	$(call log,${PL},Stopping existing local containers)
 	@docker compose stop ${SERVICE_NAME}
-	$(call log,${PL},"Building local container")
+	$(call log,${PL},Building local container)
 	@docker compose build ${SERVICE_NAME}
-	$(call log,${PL},"Local build complete")
+	$(call log,${PL},Local build complete)
 
 # Same as above, but completely rebuilds without docker cache (takes a long time)
 build-nc:
-	$(call log,${PL},"Stopping existing local containers")
+	$(call log,${PL},Stopping existing local containers)
 	@docker compose stop ${SERVICE_NAME}
-	$(call log,${PL},"Rebuilding local container cachelessly")
+	$(call log,${PL},Rebuilding local container cachelessly)
 	@docker compose build --no-cache ${SERVICE_NAME}
-	$(call log,${PL},"Local build complete$")
+	$(call log,${PL},Local build complete)
 
 # Restarts the docker service / container for you and runs colcon build / command (these will persist by default)
 run:
-	$(call log,${GN},"Stopping existing local containers")
+	$(call log,${GN},Stopping existing local containers)
 	@docker compose stop ${SERVICE_NAME}
-	$(call log,${GN},"Starting local container \(emulation will be used if platform unsupported\)")
+	$(call log,${GN},Starting local container \(emulation will be used if platform unsupported\))
 	@docker compose up -d ${SERVICE_NAME}
-	$(call log,${GN},"Running colcon build")
-	$(call docexec,". /opt/ros/${ROS_DISTRO}/install/setup.bash && colcon build")
-	$(call log,${GN},"Starting command: ${COMMAND}")
-	$(call docexecd,". /opt/ros/${ROS_DISTRO}/install/setup.bash && ${COMMAND}")
-	$(call log,${GN},"Local container online")
+	$(call log,${GN},Running colcon build)
+	$(call docexec,colcon build)
+	$(call log,${GN},Starting command: ${CMD})
+	$(call docexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call log,${GN},Local container online)
 
 # Same as above, but wipes all cache generated by colcon
 run-nc:
-	$(call log,${GN},"Stopping existing local containers")
+	$(call log,${GN},Stopping existing local containers)
 	@docker compose stop ${SERVICE_NAME}
-	$(call log,${GN},"Removing colcon files")
+	$(call log,${GN},Removing colcon files)
 	@rm -rfv build install log
-	$(call log,${GN},"Starting local container (emulation will be used if platform unsupported)")
+	$(call log,${GN},Starting local container \(emulation will be used if platform unsupported\))
 	@docker compose up -d ${SERVICE_NAME}
-	$(call log,${GN},"Running colcon build")
-	$(call docexec,". /opt/ros/${ROS_DISTRO}/install/setup.bash && colcon build")
-	$(call log,${GN},"Starting command: ${COMMAND}")
-	$(call docexecd,". /opt/ros/${ROS_DISTRO}/install/setup.bash && . ./install/local_setup.bash && ${COMMAND}")
-	$(call log,${GN},"Local container online")
+	$(call log,${GN},Running colcon build)
+	$(call docexec,colcon build)
+	$(call log,${GN},Starting command: ${CMD})
+	$(call docexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call log,${GN},Local container online)
 
 # Attaches to bash shell currently running project container
 attach:
-	@echo "${PURPLE}[ATTACH] Attaching to locally running container${NC}"
+	$(call log,${PL},Attaching to locally running container)
 	@docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash
-	@echo "${PURPLE}[ATTACH] Detached from locally running container${NC}"
+	$(call log,${PL},Detached from locally running container)
 
 # Attaches to bash shell in relevant container on remote machine
 attach-r:
-	@echo "${PURPLE}[ATTACH] Attaching to remote container${NC}"
-	@ssh -t -o LogLevel=ERROR -o PasswordAuthentication=no -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash"
-	@echo "${PURPLE}[ATTACH] Detached from remote container${NC}"
+	$(call log,${PL},Attaching to remote container)
+	$(call sshexec,docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash)
+	$(call log,${PL},Detached from remote container)
 
-# Attaches SSH session to the AGX Orin itself (outside of container)
+# Attaches SSH session to the Orin itself (outside of container)
 attach-metal:
-	@echo "${CYAN}[ATTACH] Attaching to remote AGX orin (outside of container)${NC}"
-	@ssh -t -o LogLevel=ERROR -o PasswordAuthentication=no -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME}
-	@echo "${CYAN}[ATTACH] Detached from remote AGX orin${NC}"
+	$(call log,${CY},Attaching to remote Orin \(outside of container\))
+	@ssh -t ${SSH_OPTS} ${REM_TGT}
+	$(call log,${CY},Detrached from remote Orin)
 
 # Stops relevant containers on host machine and disables persistence
 stop:
-	@echo "${RED}[STOP] Stopping local container instances${NC}"
+	$(call log,${RD},Stopping local container instances)
 	@docker compose stop ${SERVICE_NAME}
-	@echo "${RED}[STOP] Container stopped${NC}"
+	$(call log,${RD},Container stopped)
 
 # Stops relevant container on remote machine and disables persistence
 stop-r:
-	@echo "${RED}[STOP-R] Stopping remote container instances${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "cd ${REMOTE_DIR}; docker compose stop ${CONTAINER_NAME}"
-	@echo "${RED}[STOP-R] Remote container stopped${NC}"
+	$(call log,${RD},Stopping remote container instances)
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${CONTAINER_NAME})
+	$(call log,${RD},Remote container stopped)
 
 # Lists locally running containers relevant to this project, images created, and the docker service status
 status:
-	@echo "\n${GREEN}[STATUS] <<LOCAL CONTAINERS>>"
+	$(call logb,${GN}, <<LOCAL CONTAINERS>>)
 	@docker ps | grep -e CONTAINER -e ${CONTAINER_NAME}
-	@echo "\n${YELLOW}[STATUS] <<LOCAL IMAGES>>"
+	$(call logb,${YL}, <<LOCAL IMAGES>>)
 	@docker image ls | grep -e REPOSITORY -e ${CONTAINER_NAME}
-	@echo "\n${CYAN}[STATUS] <<LOCAL DOCKER SERVICE>>"
+	$(call logb,${CY}, <<LOCAL IMAGES>>)
 	@service docker status | grep -e Active
 
 # Lists remote running containers relevant to this project, images
 status-r:
-	@echo "\n${GREEN}[STATUS-R] <<REMOTE CONTAINERS>>"
-	@ssh -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker ps" | grep -e CONTAINER -e ${CONTAINER_NAME}
-	@echo "\n${YELLOW}[STATUS-R] <<REMOTE IMAGES>>"
-	@ssh -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker image ls" | grep -e REPOSITORY -e ${CONTAINER_NAME}
-	@echo "\n${CYAN}[STATUS-R] <<REMOTE DOCKER SERVICE>>"
-	@ssh -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "service docker status" | grep -e Active
+	$(call logb,${GN}, <<REMOTE CONTAINERS>>)
+	$(call sshexec,docker ps | grep -e CONTAINER -e ${CONTAINER_NAME})
+	$(call logb,${YL}, <<REMOTE IMAGES>>)
+	$(call sshexec,docker image ls | grep -e REPOSITORY -e ${CONTAINER_NAME})
+	$(call logb,${CY}, <<REMOTE DOCKER SERVICE>>)
+	$(call sshexec,service docker status | grep -e Active)
 
 # Stops, rebuilds and restarts persistent container on the remote machine
 deploy:
-	@echo "${YELLOW}[DEPLOY] Deploying container on remote machine${NC}"
-	@echo "${YELLOW}[DEPLOY] Transferring files${NC}"
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REMOTE_USER}@${REMOTE_HOSTNAME}:/home/robot/local_ws
-	@echo "${YELLOW}[DEPLOY] Starting remote container${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "cd ${REMOTE_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME}"
-	@echo "${YELLOW}[DEPLOY] Running colcon build${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \". /opt/ros/${ROS_DISTRO}/install/setup.bash && colcon build\""
-	@echo "${YELLOW}[DEPLOY] Starting command${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker exec -itd -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \". /opt/ros/${ROS_DISTRO}/install/setup.bash && . ./install/local_setup.bash && ${COMMAND}\""
-	@echo "${YELLOW}[DEPLOY] Remote container online${NC}"
+	$(call log,${YL},Deploying container on remote machine)
+	$(call log,${YL},Transferring files)
+	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REM_TGT}:/home/robot/local_ws
+	$(call log,${YL},Starting remote container)
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call log,${YL},Running colcon build)
+	$(call sshdocexec,colcon build)
+	$(call log,${YL},Starting command: ${CMD})
+	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call log,${YL},Remote container online)
 
 # Same as above, but with remote colon cache directories removed
 deploy-nc:
-	@echo "${YELLOW}[DEPLOY-NC] Deploying container on remote machine without colcon cache${NC}"
-	@echo "${YELLOW}[DEPLOY-NC] Removing colcon files${NC}"
+	$(call log,${YL},Deploying container on remote machine without colcon cache)
+	$(call log,${YL},Removing colcon files)
 	@rm -rfv build install log
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "cd ${REMOTE_DIR}; rm -rfv build install log"
-	@echo "${YELLOW}[DEPLOY-NC] Syncing directory${NC}"
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REMOTE_USER}@${REMOTE_HOSTNAME}:/home/robot/local_ws
-	@echo "${YELLOW}[DEPLOY-NC] Starting remote container${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "cd ${REMOTE_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME}"
-	@echo "${YELLOW}[DEPLOY-NC] Running colcon build${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \". /opt/ros/${ROS_DISTRO}/install/setup.bash && colcon build\""
-	@echo "${YELLOW}[DEPLOY-NC] Starting command${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker exec -itd -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \". /opt/ros/${ROS_DISTRO}/install/setup.bash && . ./install/local_setup.bash && ${COMMAND}\""
-	@echo "${YELLOW}[DEPLOY-NC] Remote container online${NC}"
+	$(call sshexec,cd ${REM_DIR}; rm -rfv build install log)
+	$(call log,${YL},Syncing directory)
+	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REM_TGT}:/home/robot/local_ws
+	$(call log,${YL},Starting remote container)
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call log,${YL},Running colcon build)
+	$(call sshdocexec,colcon build)
+	$(call log,${YL},Starting command: ${CMD})
+	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call log,${YL},Remote container online)
 
-# Same as above, but completely rebuilds without remote docker or colcon cache (takes a long time)
-deploy-rebuild:
-	@echo "${YELLOW}[DEPLOY-REBUILD] Deploying container on remote machine with full cacheless rebuild${NC}"
-	@echo "${YELLOW}[DEPLOY-REBUILD] Removing colcon files${NC}"
+# Same as above, but rebuilds on remote machine with full cacheless docker rebuild
+deploy-rb:
+	$(call log,${YL},Removing colcon files)
 	@rm -rfv build install log
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "cd ${REMOTE_DIR}; rm -rfv build install log"
-	@echo "${YELLOW}[DEPLOY-REBUILD] Syncing directory${NC}"
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude ./.git ./* ${REMOTE_USER}@${REMOTE_HOSTNAME}:/home/robot/local_ws
-	@echo "${YELLOW}[DEPLOY-REBUILD] Starting remote container${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "cd ${REMOTE_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build --no-cache ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME}"
-	@echo "${YELLOW}[DEPLOY-REBUILD] Running colcon build${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \". /opt/ros/${ROS_DISTRO}/install/setup.bash && colcon build\""
-	@echo "${YELLOW}[DEPLOY-REBUILD] Starting command${NC}"
-	@ssh -t -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOSTNAME} "docker exec -itd -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \". /opt/ros/${ROS_DISTRO}/install/setup.bash && . ./install/local_setup.bash && ${COMMAND}\""
-	@echo "${YELLOW}[DEPLOY-REBUILD] Remote container online${NC}"
+	$(call sshexec,cd ${REM_DIR}; rm -rfv build install log)
+	$(call log,${YL},Syncing directory)
+	@rsync -vrz --exclude Makefile --exclude README.md --exclude ./.git ./* ${REM_TGT}:/home/robot/local_ws
+	$(call log,${YL},Starting remote container)
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build --no-cache ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call log,${YL},Running colcon build)
+	$(call sshdocexec,colcon build)
+	$(call log,${YL},Starting command: ${CMD})
+	$(call sshdocexecd,. /opt/ros/${ROS_DISTRO}/install/setup.bash && . ./install/local_setup.bash && ${CMD})
+	$(call log,${YL},Remote container online)
 
-# (UNIMPLEMENTED) transfers existing docker image from host to remote and runs it (use with build/run to compile on host)
-deploy-loc:
-	@echo "WIP NOT FINISHED"
+# Deploys without building colcon (use this if building on host machine)
+deploy-nb:
+	$(call log,${YL},Deploying container on remote machine)
+	$(call log,${YL},Transferring files)
+	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REM_TGT}:/home/robot/local_ws
+	$(call log,${YL},Starting remote container)
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call log,${YL},Starting command: ${CMD})
+	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call log,${YL},Remote container online)
+
+# Transfers built docker image from host machine to target, assuming target is running its own docker registry server
+img-tx:
+	$(call log,${CY},Pushing container to target's registry)
+	@docker push ${REM_HOSTNAME}:${REM_REG_PORT}/${CONTAINER_NAME}:latest
+	$(call log,${CY},Pulling container on target)
+	$(call sshexec,docker pull 127.0.0.1:${TGT_REG_PORT}/${CONTAINER_NAME}:latest)
+	$(call log,${CY},Transfer complete)
+
+# Same as above, but compresses and sends the entire docker image directly without using a registry server (much slower)
+img-tx-c:
+	$(call log,${CY},Moving local container to remote machine)
+	@if [ -e "${IMG_FILE}" ]; then \
+        rm -rfv ${IMG_FILE}; \
+	fi
+	$(call log,${CY},Saving image)
+	@docker save ${CONTAINER_NAME}:latest -o ./${IMG_FILE}
+	$(call log,${CY},Transferring files)
+	@rsync -vrz ./${IMG_FILE} ${REM_TGT}:/home/robot/local_ws
+	@rm -rfv ${IMG_FILE};
+	$(call log,${CY},Loading image on remote)
+	$(call sshexec,docker image rm ${CONTAINER_NAME}:latest; docker load -i ${REM_DIR}/${IMG_FILE}; rm -rfv ${REM_DIR}/${IMG_FILE})
+	$(call log,${CY},Transfer complete)
+
+# Transfers image by using an external registry server not hosted on the target machine
+img-tx-ext:
+	$(call log,${CY},Pushing container to external registry)
+	@docker push ${EXT_REG_IP}:${EXT_REG_PORT}/${CONTAINER_NAME}:latest
+	$(call log,${CY},Pulling container on target)
+	$(call sshexec,docker pull ${EXT_REG_IP}:${TGT_REG_PORT}/${CONTAINER_NAME}:latest)
+	$(call log,${CY},Transfer complete)
