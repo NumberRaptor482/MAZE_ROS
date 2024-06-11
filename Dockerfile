@@ -20,7 +20,7 @@ RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y sudo tree tmux nano iputils-ping iperf3
 
-# Create the user, set passwordless sudo
+# Create the user
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
