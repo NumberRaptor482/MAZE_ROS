@@ -95,7 +95,7 @@ run:
 	$(call log,${GN},Starting local container \(emulation will be used if platform unsupported\))
 	@${DOCKER_CMD} compose up -d ${SERVICE_NAME}
 	$(call log,${GN},Running colcon build)
-	$(call docexec, sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
+	$(call docexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
 	$(call log,${GN},Starting command: ${CMD})
 	$(call docexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
 	$(call log,${GN},Local container online)
