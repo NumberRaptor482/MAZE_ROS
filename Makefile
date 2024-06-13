@@ -95,7 +95,7 @@ run:
 	$(call log,${GN},Starting local container \(emulation will be used if platform unsupported\))
 	@${DOCKER_CMD} compose up -d ${SERVICE_NAME}
 	$(call log,${GN},Running colcon build)
-	$(call docexec,colcon build)
+	$(call docexec, sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
 	$(call log,${GN},Starting command: ${CMD})
 	$(call docexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
 	$(call log,${GN},Local container online)
@@ -109,7 +109,7 @@ run-nc:
 	$(call log,${GN},Starting local container \(emulation will be used if platform unsupported\))
 	@${DOCKER_CMD} compose up -d ${SERVICE_NAME}
 	$(call log,${GN},Running colcon build)
-	$(call docexec,colcon build)
+	$(call docexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
 	$(call log,${GN},Starting command: ${CMD})
 	$(call docexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
 	$(call log,${GN},Local container online)
@@ -166,11 +166,11 @@ status-r:
 deploy:
 	$(call log,${YL},Deploying container on remote machine)
 	$(call log,${YL},Transferring files)
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REM_TGT}:/home/robot/local_ws
+	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git --exclude build ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
 	$(call log,${YL},Running colcon build)
-	$(call sshdocexec,colcon build)
+	$(call sshdocexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
 	$(call log,${YL},Starting command: ${CMD})
 	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
 	$(call log,${YL},Remote container online)
@@ -186,7 +186,7 @@ deploy-nc:
 	$(call log,${YL},Starting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
 	$(call log,${YL},Running colcon build)
-	$(call sshdocexec,colcon build)
+	$(call sshdocexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
 	$(call log,${YL},Starting command: ${CMD})
 	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
 	$(call log,${YL},Remote container online)
@@ -201,7 +201,7 @@ deploy-rb:
 	$(call log,${YL},Starting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build --no-cache ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
 	$(call log,${YL},Running colcon build)
-	$(call sshdocexec,colcon build)
+	$(call sshdocexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
 	$(call log,${YL},Starting command: ${CMD})
 	$(call sshdocexecd,. /opt/ros/${ROS_DISTRO}/install/setup.bash && . ./install/local_setup.bash && ${CMD})
 	$(call log,${YL},Remote container online)
