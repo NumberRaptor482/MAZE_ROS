@@ -15,6 +15,7 @@ TGT_REG_PORT := 5000
 EXT_REG_IP := 127.0.0.1# CHANGE ME to enable uploading to an external registry server
 EXT_REG_PORT := 5000
 DOCKER_CMD := docker
+RSYNC_EXCLUDES := --exclude Makefile --exclude README.md --exclude .git --exclude build --exclude install --exclude log
 
 # Terminal colors
 PL := \033[35;1m#  purple
@@ -166,7 +167,7 @@ status-r:
 deploy:
 	$(call log,${YL},Deploying container on remote machine)
 	$(call log,${YL},Transferring files)
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git --exclude build ./* ${REM_TGT}:/home/robot/local_ws
+	@rsync -vrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
 	$(call log,${YL},Running colcon build)
@@ -182,7 +183,7 @@ deploy-nc:
 	@rm -rfv build install log
 	$(call sshexec,cd ${REM_DIR}; rm -rfv build install log)
 	$(call log,${YL},Syncing directory)
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REM_TGT}:/home/robot/local_ws
+	@rsync -vrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
 	$(call log,${YL},Running colcon build)
@@ -197,7 +198,7 @@ deploy-rb:
 	@rm -rfv build install log
 	$(call sshexec,cd ${REM_DIR}; rm -rfv build install log)
 	$(call log,${YL},Syncing directory)
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude ./.git ./* ${REM_TGT}:/home/robot/local_ws
+	@rsync -vrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build --no-cache ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
 	$(call log,${YL},Running colcon build)
@@ -210,7 +211,7 @@ deploy-rb:
 deploy-nb:
 	$(call log,${YL},Deploying container on remote machine)
 	$(call log,${YL},Transferring files)
-	@rsync -vrz --exclude Makefile --exclude README.md --exclude .git ./* ${REM_TGT}:/home/robot/local_ws
+	@rsync -vrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
 	$(call log,${YL},Starting command: ${CMD})
