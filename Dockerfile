@@ -26,6 +26,9 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
+# Add to dialout group for USB support
+RUN usermod -aG dialout $USERNAME
+
 # Add ROS2 install to .bashrc
 RUN echo "source /opt/ros/humble/install/setup.bash" >> /home/$USERNAME/.bashrc
 
