@@ -9,13 +9,15 @@ services:
         source: .
         target: /home/ros/ws
     command: ["tail", "-f", "/dev/null"]
+    environment:
+      - ROS_DOMAIN_ID=0
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/ros/ws/no_shm.xml
     build:
       context: .
       args:
         USERNAME: ros
-        ROS_DOMAIN_ID: 0
-        ROS_AUTOMATIC_DISCOVERY_RANGE: SUBNET
-        RMW_IMPLEMENTATION: rmw_fastrtps_cpp
       platforms:
         - "linux/arm64"
     image: humble_orin:latest
