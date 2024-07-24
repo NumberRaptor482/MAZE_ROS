@@ -6,8 +6,10 @@ REM_USER := robot
 DOCKER_DIR := /home/${DOCKER_USER}/ws
 REM_DIR := /home/${REM_USER}/local_ws
 ROS_DISTRO := humble
-SERVICE_NAME := humble_orin
-CONTAINER_NAME := ${SERVICE_NAME}
+X86_SRV_NM := humble_orin_x86
+X86_CONTAINER_NM := ${X86_SRV_NM}
+ARM_SRV_NM := humble_orin_arm
+ARM_CONTAINER_NM := ${ARM_SRV_NM}
 REM_TGT := ${REM_USER}@${REM_HOSTNAME}
 SSH_OPTS := -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no
 IMG_FILE := img_transfer_temp.tar
@@ -16,17 +18,21 @@ EXT_REG_IP := 127.0.0.1# CHANGE ME to enable uploading to an external registry s
 EXT_REG_PORT := 5000
 DOCKER_CMD := docker
 RSYNC_EXCLUDES := --exclude Makefile --exclude README.md --exclude .git --exclude build --exclude install --exclude log
+COLCON_CMD := colcon build# Modify default colcon command here (do not specify cache arguments)
+HANDLE_ROSDEPS := (sudo rosdep init || true) && rosdep update && rosdep install --from-paths src -y --ignore-src
+DATE := $(shell date)
+
 
 # Terminal colors
 PL := \033[35;1m#  purple
 GN := \033[32;1m#  green
 YL := \033[33;1m#  yellow
 CY := \033[36;1m#  cyan
-RD := \033[31;1m#  red
+RD := \033[31;1m#  red 
 NC := \033[0m#     reset
 
-# Ensure Make doesn't look for files
-.PHONY: build build-nc run run-nc attach attach-r attach-metal stop stop-r status status-r deploy deploy-nc deploy-rb deploy-nb img-tx img-tx-c img-tx-ext
+# Ensure Make doesn't look for files (you may get build issues otherwise, please ensure all commands are listed here)
+.PHONY: build build-arm build-nc build-nc-arm run run-nc attach attach-r attach-metal stop stop-r status status-r deploy deploy-nc deploy-rb deploy-nb restart-r img-tx img-tx-c img-tx-ext clock-sync-r
 
 
 # Displays formatted log message
@@ -51,80 +57,94 @@ endef
 # Executes command in docker container
 # Args: command (&& delineated if multiple, escape double quotes)
 define docexec
-	@${DOCKER_CMD} exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c "$(1)"
+	@${DOCKER_CMD} exec -it -w ${DOCKER_DIR} ${X86_CONTAINER_NM} /bin/bash -ic "$(1)"
 endef
 
 # Same as above, but detaches instead of waiting
 # Args: command (&& delineated if multiple, escape double quotes)
 define docexecd
-	@${DOCKER_CMD} exec -itd -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c "$(1)"
+	@${DOCKER_CMD} exec -itd -w ${DOCKER_DIR} ${X86_CONTAINER_NM} /bin/bash -ic "$(1)"
 endef
 
 # Runs command inside remote docker container via ssh connection
 # Args: command (&& delineated if multiple, escape double quotes)
 define sshdocexec
-	@ssh -t ${SSH_OPTS} ${REM_TGT} "docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \"$(1)\""
+	@ssh -t ${SSH_OPTS} ${REM_TGT} "docker exec -it -w ${DOCKER_DIR} ${ARM_CONTAINER_NM} /bin/bash -ic \"$(1)\""
 endef
 
 # Same as above, but detaches instead of waiting
 # Args: command (&& delineated if multiple, escape double quotes)
 define sshdocexecd
-	@ssh -t ${SSH_OPTS} ${REM_TGT} "docker exec -itd -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash -c \"$(1)\""
+	@ssh -t ${SSH_OPTS} ${REM_TGT} "docker exec -itd -w ${DOCKER_DIR} ${ARM_CONTAINER_NM} /bin/bash -ic \"$(1)\""
 endef
 
 
 # Builds the container locally with docker cache
 build:
 	$(call log,${PL},Stopping existing local containers)
-	@${DOCKER_CMD} compose stop ${SERVICE_NAME}
+	@${DOCKER_CMD} compose stop ${X86_SRV_NM}
 	$(call log,${PL},Building local container)
-	@${DOCKER_CMD} compose build ${SERVICE_NAME}
+	@${DOCKER_CMD} compose build ${X86_SRV_NM}
+	$(call log,${PL},Local build complete)
+
+build-arm:
+	$(call log,${PL},Stopping existing local containers)
+	@${DOCKER_CMD} compose stop ${ARM_SRV_NM}
+	$(call log,${PL},Building local container)
+	@${DOCKER_CMD} compose build ${ARM_SRV_NM}
 	$(call log,${PL},Local build complete)
 
 # Same as above, but completely rebuilds without docker cache (takes a long time)
 build-nc:
 	$(call log,${PL},Stopping existing local containers)
-	@${DOCKER_CMD} compose stop ${SERVICE_NAME}
+	@${DOCKER_CMD} compose stop ${X86_SRV_NM}
 	$(call log,${PL},Rebuilding local container cachelessly)
-	@${DOCKER_CMD} compose build --no-cache ${SERVICE_NAME}
+	@${DOCKER_CMD} compose build --no-cache ${X86_SRV_NM}
+	$(call log,${PL},Local build complete)
+
+build-nc-arm:
+	$(call log,${PL},Stopping existing local containers)
+	@${DOCKER_CMD} compose stop ${ARM_SRV_NM}
+	$(call log,${PL},Rebuilding local container cachelessly)
+	@${DOCKER_CMD} compose build --no-cache ${ARM_SRV_NM}
 	$(call log,${PL},Local build complete)
 
 # Restarts the docker service / container for you and runs colcon build / command (these will persist by default)
 run:
 	$(call log,${GN},Stopping existing local containers)
-	@${DOCKER_CMD} compose stop ${SERVICE_NAME}
-	$(call log,${GN},Starting local container \(emulation will be used if platform unsupported\))
-	@${DOCKER_CMD} compose up -d ${SERVICE_NAME}
+	@${DOCKER_CMD} compose stop ${X86_SRV_NM}
+	$(call log,${GN},Starting local container (emulation will be used if platform unsupported))
+	@${DOCKER_CMD} compose up -d ${X86_SRV_NM} --remove-orphans
 	$(call log,${GN},Running colcon build)
-	$(call docexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
+	$(call docexec,${HANDLE_ROSDEPS} && sudo chmod -R 777 /home/${DOCKER_USER} && ${COLCON_CMD})
 	$(call log,${GN},Starting command: ${CMD})
-	$(call docexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call docexecd,${CMD})
 	$(call log,${GN},Local container online)
 
 # Same as above, but wipes all cache generated by colcon
 run-nc:
 	$(call log,${GN},Stopping existing local containers)
-	@${DOCKER_CMD} compose stop ${SERVICE_NAME}
+	@${DOCKER_CMD} compose stop ${X86_SRV_NM}
 	$(call log,${GN},Removing colcon files)
 	@rm -rfv build install log
 	$(call log,${GN},Starting local container \(emulation will be used if platform unsupported\))
-	@${DOCKER_CMD} compose up -d ${SERVICE_NAME}
+	@${DOCKER_CMD} compose up -d ${X86_SRV_NM} --remove-orphans
 	$(call log,${GN},Running colcon build)
-	$(call docexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
+	$(call docexec,${HANDLE_ROSDEPS} && sudo chmod -R 777 /home/${DOCKER_USER} && ${COLCON_CMD})
 	$(call log,${GN},Starting command: ${CMD})
-	$(call docexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call docexecd,${CMD})
 	$(call log,${GN},Local container online)
 
 # Attaches to bash shell currently running project container
 attach:
-	$(call log,${PL},Attaching to locally running container)
-	@${DOCKER_CMD} exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash
-	$(call log,${PL},Detached from locally running container)
+	$(call log,${PL},Attaching to local container)
+	@${DOCKER_CMD} exec -it -w ${DOCKER_DIR} ${X86_CONTAINER_NM} /bin/bash
+	$(call log,${PL},Detached from local container)
 
 # Attaches to bash shell in relevant container on remote machine
 attach-r:
 	$(call log,${PL},Attaching to remote container)
-	$(call sshexec,docker exec -it -w ${DOCKER_DIR} ${CONTAINER_NAME} /bin/bash)
+	$(call sshexec,docker exec -it -w ${DOCKER_DIR} ${ARM_CONTAINER_NM} /bin/bash)
 	$(call log,${PL},Detached from remote container)
 
 # Attaches SSH session to the Orin itself (outside of container)
@@ -136,30 +156,30 @@ attach-metal:
 # Stops relevant containers on host machine and disables persistence
 stop:
 	$(call log,${RD},Stopping local container instances)
-	@${DOCKER_CMD} compose stop ${SERVICE_NAME}
+	@${DOCKER_CMD} compose stop ${X86_SRV_NM}
 	$(call log,${RD},Container stopped)
 
 # Stops relevant container on remote machine and disables persistence
 stop-r:
 	$(call log,${RD},Stopping remote container instances)
-	$(call sshexec,cd ${REM_DIR}; docker compose stop ${CONTAINER_NAME})
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_CONTAINER_NM})
 	$(call log,${RD},Remote container stopped)
 
-# Lists locally running containers relevant to this project, images created, and the docker service status
+# Lists local containers relevant to this project, images created, and the docker service status
 status:
 	$(call logb,${GN}, <<LOCAL CONTAINERS>>)
-	@${DOCKER_CMD} ps | grep -e CONTAINER -e ${CONTAINER_NAME}
+	@${DOCKER_CMD} ps | grep -e CONTAINER -e ${X86_CONTAINER_NM}
 	$(call logb,${YL}, <<LOCAL IMAGES>>)
-	@${DOCKER_CMD} image ls | grep -e REPOSITORY -e ${CONTAINER_NAME}
+	@${DOCKER_CMD} image ls | grep -e REPOSITORY -e ${X86_CONTAINER_NM}
 	$(call logb,${CY}, <<LOCAL IMAGES>>)
 	@service docker status | grep -e Active
 
 # Lists remote running containers relevant to this project, images
 status-r:
 	$(call logb,${GN}, <<REMOTE CONTAINERS>>)
-	$(call sshexec,docker ps | grep -e CONTAINER -e ${CONTAINER_NAME})
+	$(call sshexec,docker ps | grep -e CONTAINER -e ${ARM_CONTAINER_NM})
 	$(call logb,${YL}, <<REMOTE IMAGES>>)
-	$(call sshexec,docker image ls | grep -e REPOSITORY -e ${CONTAINER_NAME})
+	$(call sshexec,docker image ls | grep -e REPOSITORY -e ${ARM_CONTAINER_NM})
 	$(call logb,${CY}, <<REMOTE DOCKER SERVICE>>)
 	$(call sshexec,service docker status | grep -e Active)
 
@@ -169,11 +189,11 @@ deploy:
 	$(call log,${YL},Transferring files)
 	@rsync -avrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
-	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_SRV_NM}; docker compose build ${ARM_SRV_NM}; docker compose up -d ${ARM_SRV_NM} --remove-orphans)
 	$(call log,${YL},Running colcon build)
-	$(call sshdocexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
+	$(call sshdocexec,${HANDLE_ROSDEPS} && sudo chmod -R 777 /home/${DOCKER_USER} && ${COLCON_CMD})
 	$(call log,${YL},Starting command: ${CMD})
-	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call sshdocexecd,${CMD})
 	$(call log,${YL},Remote container online)
 
 # Same as above, but with remote colon cache directories removed
@@ -185,11 +205,11 @@ deploy-nc:
 	$(call log,${YL},Syncing directory)
 	@rsync -avrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
-	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_SRV_NM}; docker compose build ${ARM_SRV_NM}; docker compose up -d ${ARM_SRV_NM} --remove-orphans)
 	$(call log,${YL},Running colcon build)
-	$(call sshdocexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
+	$(call sshdocexec,${HANDLE_ROSDEPS} && sudo chmod -R 777 /home/${DOCKER_USER} && ${COLCON_CMD})
 	$(call log,${YL},Starting command: ${CMD})
-	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call sshdocexecd,${CMD})
 	$(call log,${YL},Remote container online)
 
 # Same as above, but rebuilds on remote machine with full cacheless docker rebuild
@@ -200,30 +220,41 @@ deploy-rb:
 	$(call log,${YL},Syncing directory)
 	@rsync -avrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
-	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build --no-cache ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_SRV_NM}; docker compose build --no-cache ${ARM_SRV_NM}; docker compose up -d ${ARM_SRV_NM} --remove-orphans)
 	$(call log,${YL},Running colcon build)
-	$(call sshdocexec,sudo rosdep init && rosdep update && rosdep install --from-paths src -y --ignore-src && colcon build)
+	$(call sshdocexec,${HANDLE_ROSDEPS} && sudo chmod -R 777 /home/${DOCKER_USER} && ${COLCON_CMD})
 	$(call log,${YL},Starting command: ${CMD})
-	$(call sshdocexecd,. /opt/ros/${ROS_DISTRO}/install/setup.bash && . ./install/local_setup.bash && ${CMD})
+	$(call sshdocexecd,${CMD})
 	$(call log,${YL},Remote container online)
 
-# Deploys without building colcon (use this if building on host machine)
+# Deploys without building colcon (use this if cross-compiling from host machine)
 deploy-nb:
 	$(call log,${YL},Deploying container on remote machine)
 	$(call log,${YL},Transferring files)
 	@rsync -avrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
 	$(call log,${YL},Starting remote container)
-	$(call sshexec,cd ${REM_DIR}; docker compose stop ${SERVICE_NAME}; docker compose build ${SERVICE_NAME}; docker compose up -d ${SERVICE_NAME})
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_SRV_NM}; docker compose build ${ARM_SRV_NM}; docker compose up -d ${ARM_SRV_NM} --remove-orphans)
 	$(call log,${YL},Starting command: ${CMD})
-	$(call sshdocexecd,. ${DOCKER_DIR}/install/local_setup.bash && ${CMD})
+	$(call sshdocexecd,${CMD})
+	$(call log,${YL},Remote container online)
+
+# Restarts remote container without rebuilding
+restart-r:
+	$(call log,${YL},Deploying container on remote machine)
+	$(call log,${YL},Transferring files)
+	@rsync -avrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
+	$(call log,${YL},Starting remote container)
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_SRV_NM}; docker compose up -d ${ARM_SRV_NM} --remove-orphans)
+	$(call log,${YL},Starting command: ${CMD})
+	$(call sshdocexecd,${CMD})
 	$(call log,${YL},Remote container online)
 
 # Transfers built docker image from host machine to target, assuming target is running its own docker registry server
 img-tx:
 	$(call log,${CY},Pushing container to target's registry)
-	@${DOCKER_CMD} push ${REM_HOSTNAME}:${REM_REG_PORT}/${CONTAINER_NAME}:latest
+	@${DOCKER_CMD} push ${REM_HOSTNAME}:${REM_REG_PORT}/${ARM_CONTAINER_NM}:latest
 	$(call log,${CY},Pulling container on target)
-	$(call sshexec,docker pull 127.0.0.1:${TGT_REG_PORT}/${CONTAINER_NAME}:latest)
+	$(call sshexec,docker pull 127.0.0.1:${TGT_REG_PORT}/${ARM_CONTAINER_NM}:latest)
 	$(call log,${CY},Transfer complete)
 
 # Same as above, but compresses and sends the entire docker image directly without using a registry server (much slower)
@@ -233,18 +264,23 @@ img-tx-c:
         rm -rfv ${IMG_FILE}; \
 	fi
 	$(call log,${CY},Saving image)
-	@${DOCKER_CMD} save ${CONTAINER_NAME}:latest -o ./${IMG_FILE}
+	@${DOCKER_CMD} save ${ARM_CONTAINER_NM}:latest -o ./${IMG_FILE}
 	$(call log,${CY},Transferring files)
-	@rsync -vrz ./${IMG_FILE} ${REM_TGT}:/home/robot/local_ws
+	@rsync -avrz ./${IMG_FILE} ${REM_TGT}:/home/robot/local_ws
 	@rm -rfv ${IMG_FILE};
 	$(call log,${CY},Loading image on remote)
-	$(call sshexec,docker image rm ${CONTAINER_NAME}:latest; docker load -i ${REM_DIR}/${IMG_FILE}; rm -rfv ${REM_DIR}/${IMG_FILE})
+	$(call sshexec,docker image rm ${ARM_CONTAINER_NM}:latest; docker load -i ${REM_DIR}/${IMG_FILE}; rm -rfv ${REM_DIR}/${IMG_FILE})
 	$(call log,${CY},Transfer complete)
 
 # Transfers image by using an external registry server not hosted on the target machine
 img-tx-ext:
 	$(call log,${CY},Pushing container to external registry)
-	@${DOCKER_CMD} push ${EXT_REG_IP}:${EXT_REG_PORT}/${CONTAINER_NAME}:latest
+	@${DOCKER_CMD} push ${EXT_REG_IP}:${EXT_REG_PORT}/${ARM_CONTAINER_NM}:latest
 	$(call log,${CY},Pulling container on target)
-	$(call sshexec,docker pull ${EXT_REG_IP}:${TGT_REG_PORT}/${CONTAINER_NAME}:latest)
+	$(call sshexec,docker pull ${EXT_REG_IP}:${TGT_REG_PORT}/${ARM_CONTAINER_NM}:latest)
 	$(call log,${CY},Transfer complete)
+
+# Sync clock of remote machine
+clock-sync-r:
+	$(call log,${YL},Syncing remote date with local machine)
+	$(call sshexec,sudo date -s \"${DATE}\" && sudo hwclock --systohc)
