@@ -64,6 +64,10 @@ Set of directives to automate building, uploading, attaching, and maintaining re
 
 `make status-r`: lists remote running containers relevant to this project, images created, and the docker service status
 
+`make status-r`: lists remote running containers relevant to this project, images created, and the docker service status
+
+`make clock-sync-r`: sync clock of remote machine
+
 *Note that make commands can be run sequentially, e.g. `make build run-nc attach`.*
 
 *You can also temporarily override config options by placing ARG="VALUE" at the end, e.g. `make deploy REM_HOSTNAME="192.168.0.1"`.*
