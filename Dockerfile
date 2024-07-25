@@ -22,9 +22,15 @@ RUN groupadd --gid $USER_GID $USERNAME \
 # Add to dialout group for USB support
 RUN usermod -aG dialout $USERNAME
 
+# Initial rosdep commands
+RUN rm -rf /etc/ros/rosdep/sources.list.d/20-default.list && rosdep init 
+
 # Add ROS2 install to .bashrc
 RUN echo "source /opt/ros/humble/install/setup.bash" >> /home/$USERNAME/.bashrc
 RUN echo "source /home/$USERNAME/ws/install/local_setup.bash" >> /home/$USERNAME/.bashrc
 
 # Update default user
 USER $USERNAME
+
+# Fix rosdeps
+RUN rosdep update
