@@ -12,6 +12,7 @@ ARM_SRV_NM := humble_orin_arm
 ARM_CONTAINER_NM := ${ARM_SRV_NM}
 REM_TGT := ${REM_USER}@${REM_HOSTNAME}
 SSH_OPTS := -o LogLevel=ERROR -o BatchMode=yes -o "UserKnownHostsFile=/dev/null" -o StrictHostKeyChecking=no
+SSH_KEY := radlab_$(shell hostname -s)
 IMG_FILE := img_transfer_temp.tar
 TGT_REG_PORT := 5000
 EXT_REG_IP := 127.0.0.1# CHANGE ME to enable uploading to an external registry server
@@ -19,7 +20,9 @@ EXT_REG_PORT := 5000
 DOCKER_CMD := docker
 RSYNC_EXCLUDES := --exclude Makefile --exclude README.md --exclude .git --exclude build --exclude install --exclude log
 COLCON_CMD := colcon build# Modify default colcon command here (do not specify cache arguments)
-HANDLE_ROSDEPS := (sudo rosdep init || true) && rosdep update && rosdep install --from-paths src -y --ignore-src
+BINCPY_PKGS := # packages to copy binaries for, space delineated (leave blank for all)
+HANDLE_ROSDEPS := rosdep install --from-paths src --ignore-src -r -y
+TMUX_INIT := tmux new-session -d -s cmdlog && tmux send-keys '${CMD}' C-m && tmux detach -s cmdlog
 DATE := $(shell date)
 
 
@@ -79,6 +82,17 @@ define sshdocexecd
 endef
 
 
+# Creates (if necessary) and transfers public key to remote machine for auth
+sshconfig:
+	$(call log,${PL},Removing old key(s) from known hosts)
+	@ssh-keygen -R ${REM_HOSTNAME}
+	$(call log,${PL},Checking for local SSH key)
+	@-ssh-keygen -t rsa -b 4096 -f "${HOME}/.ssh/${SSH_KEY}" -N ""
+	@-ssh-keyscan ${REM_HOSTNAME} >> ~/.ssh/known_hosts
+	$(call log,${PL},Transferring SSH public key to remote)
+	@rsync -av --mkpath ~/.ssh/${SSH_KEY}.pub ${REM_USER}@${REM_HOSTNAME}:~/.ssh/authorized_keys/${SSH_KEY}.pub 
+	$(call log,${PL},SSH config complete for: ${REM_USER}@${REM_HOSTNAME})
+
 # Builds the container locally with docker cache
 build:
 	$(call log,${PL},Stopping existing local containers)
@@ -135,6 +149,18 @@ run-nc:
 	$(call docexecd,${CMD})
 	$(call log,${GN},Local container online)
 
+# Restarts the docker service / container for you and runs colcon build / command for arm (these will persist by default)
+run-arm:
+	$(call log,${GN},Stopping existing local containers)
+	@${DOCKER_CMD} compose stop ${ARM_SRV_NM}
+	$(call log,${GN},Starting local container (emulation will be used if platform unsupported))
+	@${DOCKER_CMD} compose up -d ${ARM_SRV_NM} --remove-orphans
+	$(call log,${GN},Running colcon build)
+	$(call docexec,${HANDLE_ROSDEPS} && sudo chmod -R 777 /home/${DOCKER_USER} && ${COLCON_CMD})
+	$(call log,${GN},Starting command: ${CMD})
+	$(call docexecd,${TMUX_INIT})
+	$(call log,${GN},Local container online)
+
 # Attaches to bash shell currently running project container
 attach:
 	$(call log,${PL},Attaching to local container)
@@ -182,6 +208,18 @@ status-r:
 	$(call sshexec,docker image ls | grep -e REPOSITORY -e ${ARM_CONTAINER_NM})
 	$(call logb,${CY}, <<REMOTE DOCKER SERVICE>>)
 	$(call sshexec,service docker status | grep -e Active)
+
+# View the log for the local container command (use 'ctrl+b' then 'd' to detach)
+log:
+	$(call log,${PL},Attaching to local command log (use 'ctrl+b' then 'd' to detach))
+	$(call docexec,tmux attach -t cmdlog)
+	$(call log,${PL},Detached from local command log)
+
+# View the log for the remote container command (use 'ctrl+b' then 'd' to detach)
+log-r:
+	$(call log,${PL},Attaching to remote command log (use 'ctrl+b' then 'd' to detach))
+	$(call sshdocexec,tmux attach -t cmdlog)
+	$(call log,${PL},Detached from command log)
 
 # Stops, rebuilds and restarts persistent container on the remote machine
 deploy:
@@ -238,15 +276,25 @@ deploy-nb:
 	$(call sshdocexecd,${CMD})
 	$(call log,${YL},Remote container online)
 
+# Deploys only the binaries from host
+deploy-bin:
+	$(call log,${YL},Deploying container on remote machine)
+	$(call log,${YL},Transferring binaries)
+	@rsync -avrz --mkpath ./install/* ${REM_TGT}:/home/robot/local_ws
+	$(call log,${YL},Starting remote container)
+	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_SRV_NM}; docker compose build ${ARM_SRV_NM}; docker compose up -d ${ARM_SRV_NM} --remove-orphans)
+	$(call log,${YL},Running colcon build)
+	$(call sshdocexec,${HANDLE_ROSDEPS} && sudo chmod -R 777 /home/${DOCKER_USER} && ${COLCON_CMD})
+	$(call log,${YL},Starting command: ${CMD})
+	$(call sshdocexecd,${TMUX_INIT})
+	$(call log,${YL},Remote container online)
+
 # Restarts remote container without rebuilding
 restart-r:
-	$(call log,${YL},Deploying container on remote machine)
-	$(call log,${YL},Transferring files)
-	@rsync -avrz ${RSYNC_EXCLUDES} ./* ${REM_TGT}:/home/robot/local_ws
-	$(call log,${YL},Starting remote container)
+	$(call log,${YL},Restarting remote container)
 	$(call sshexec,cd ${REM_DIR}; docker compose stop ${ARM_SRV_NM}; docker compose up -d ${ARM_SRV_NM} --remove-orphans)
 	$(call log,${YL},Starting command: ${CMD})
-	$(call sshdocexecd,${CMD})
+	$(call sshdocexecd,${TMUX_INIT})
 	$(call log,${YL},Remote container online)
 
 # Transfers built docker image from host machine to target, assuming target is running its own docker registry server
@@ -281,6 +329,7 @@ img-tx-ext:
 	$(call log,${CY},Transfer complete)
 
 # Sync clock of remote machine
-clock-sync-r:
-	$(call log,${YL},Syncing remote date with local machine)
+clocksync:
+	$(call log,${YL},Syncing remote clock with local machine)
 	$(call sshexec,sudo date -s \"${DATE}\" && sudo hwclock --systohc)
+	$(call log,${YL},Clock synced)
