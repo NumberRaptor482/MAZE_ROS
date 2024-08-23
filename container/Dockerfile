@@ -1,4 +1,4 @@
-FROM dustynv/ros:humble-ros-base-l4t-r36.2.0
+FROM ros:humble-ros-base
 
 # Only modify args here if absolutely necessary
 ARG USERNAME=ros
@@ -7,6 +7,7 @@ ARG USER_GID=$USER_UID
 
 # Update ENVs
 ENV SHELL /bin/bash
+ENV TZ America/Chicago
 
 # Install additional system packages
 RUN apt-get update \
@@ -26,7 +27,7 @@ RUN usermod -aG dialout $USERNAME
 RUN rm -rf /etc/ros/rosdep/sources.list.d/20-default.list && rosdep init 
 
 # Add ROS2 install to .bashrc
-RUN echo "source /opt/ros/humble/install/setup.bash" >> /home/$USERNAME/.bashrc
+RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
 RUN echo "source /home/$USERNAME/ws/install/local_setup.bash" >> /home/$USERNAME/.bashrc
 
 # Update default user
