@@ -1,21 +1,19 @@
-# ROS2 Workspace Template for NVIDIA Jetson Orin SOCs
-ROS2 workspace template that provides all the necessary tools for developing on remote and local containers. Can be used in conjunction with either a remote NVIDIA Jetson AGX Orin or Jetson Orin Nano. Comes pre-configured with everything necessary for hardware acceleration on Orin SOCs. Designed to be IDE and architecture agnostic for the host machine.
+# ROS2 Workspace Template for Remote Multi Architecture
+ROS2 workspace template that provides all the necessary tools for developing on remote and local containers across multiple architectures. Designed to be IDE and architecture agnostic for the host machine.
 
 ## Conceptual summary
 This is a completely containerized workflow, meaning all ROS2 functionality runs inside of a docker container. At a baisc level, you can think of a docker container as an isolated OS running inside of your actual OS, but sharing the resources that you allow it access to. This means it has a completely different set of programs and OS configuration options. Anything running inside the container can only see what is available to it, and will behave as if it is running on "bare metal". Your ROS2 workspace is mounted as a volume in the container, thus the files are shared and updated between both the container and your host system. The docker container is built according to the `Dockerfile`. The container's operation is managed by docker compose, which turns your Dockerfile into a service with runtime proprties defined in `compose.yml`.
 
 ## Prerequisites
 1. Host machine running Linux/MacOS with docker
-    * For hardware accelerated host, Ubuntu 22.04 with Nvidia GPU and nvidia docker runtime is required
     * If using MacOS, ensure rsync is updated to v3.x or higher
     * Windows hosts are untested but may work in an unaccelerated capacity via WSL
-2. Remote AGX Orin or Orin Nano flashed with default OS, accessible over LAN
-    * Ensure docker engine with docker compose and nvidia container runtime are installed
-    * Automated flashing/imaging scripts may be available in other repos
+2. Remote robot device running linux, accessible over LAN
+    * Ensure docker engine with docker compose are installed
 3. User with docker/sudo privileges on remote (ideally named `robot`)
     * If you don't want a password, enable SSH passwordless login config option on remote
     * FIPS machines may require configuring matching ciphers on the remote's `sshd_config`
-4. If you want emulation support in Ubuntu, do the following:
+4. For emulation support in Ubuntu, do the following:
     * Ensure `qemu-user-static` and other relevant QEMU packages are installed
     * Run `docker run --privileged --rm tonistiigi/binfmt --install all` once
 
@@ -25,13 +23,13 @@ This is a completely containerized workflow, meaning all ROS2 functionality runs
 1. Click `Use this template`, select `Create a new repository`
 2. Make sure `Include all branches` is checked
 3. Configure the repository to your needs, and press create
-4. In your new repo, delete all the other branches and rename `remote_nvidia` to `main`
+4. In your new repo, delete all the other branches and rename `remote` to `main`
 5. Clone the new repo on your local machine
 6. Adapt `rad.bash`, `compose.yml`, `Dockerfile`, and `README.md` as necessary (details below)
 
 ### Alternatively, if you'd just like to make a local copy of the workspace:
 1. Naviagte in your terminal to where you want the workspace
-2. Run `git clone -b remote_nvidia https://github.com/tamu-edu/rad_lab_ros2ws`
+2. Run `git clone -b remote https://github.com/tamu-edu/rad_lab_ros2ws`
 3. Go into the created folder and run `rm -rv .git` (this ensures you don't accidentally push to the template)
 4. Adapt `rad.bash`, `compose.yml`, `Dockerfile`, and `README.md` as necessary (details below)
 
@@ -124,11 +122,11 @@ If you simply want a macro that combines pre existing rad targets/subtargets (su
 Everything pertaining to the container itself is stored in the `container` directory in the workspace. Below are descriptions of the various files within as well as their function. They are listed in order of importance. If you wish to change any of the container's functionality, it is recommended to follow this order as well.
 
 ### compose.yml
-Defines services. These services are instructions for how to use the Dockerfile (details below). They include what properties to use at runtime, what volumes to mount, what devices/networking are passed through, the architecture, when to start/stop the container, Dockerfile arguments, etc. It is effectively a file that replaces the traditional `docker run` command. Convenienelty, docker compose services automatically cross compile and can detect when to run containers under emulation if the configured architecture is not the same as the host.
+Defines services. These services specify how the `Dockerfile` (details below) should be used. They include what properties to use at runtime, what volumes to mount, what devices/networking are passed through, the architecture, when to start/stop the container, `Dockerfile` arguments, etc. It is effectively a file that replaces the traditional `docker run` command. Convenienelty, docker compose services automatically cross compile and can detect when to run containers under emulation if the configured architecture is not the same as the host.
 
-There are two services in this workspace by default. These provide support for x86 and ARM architectures. They should never be run simultaneously on the same device. Also be careful if you choose to rename these default services or their containers, as the rad.bash script references them and expects certain syntax for architectures.
+There are two services in this workspace by default. These provide support for x86 and ARM architectures. They should never be run simultaneously on the same device. Also, be careful if you choose to rename these default services or their containers, as the `rad.bash` script references them and expects certain syntax for architectures.
 
-It is recommended to update container environment variables, and mount volumes here. Do not change the container command here, change it in the `rad.bash` file instead.
+It is recommended to update container environment variables, and mount volumes here. Do not change the container command here, change `CMD` in the `rad.bash` file instead.
 
 #### Adding a custom service to compose.yml
 Sometimes you will want to run other docker containers on your host or robot in addition to your ROS2 workspace. You can define them as services here, and add their names to the `ADD_SRV_NM` variable in `rad.bash`. They will then be built, started, and stopped alongside your ROS2 container. It is recommended to name the service the same thing as the container. In your service defintions, remember to use relative filepaths and environment vars that are compatible with both the host and remote system. More details on how to write a service defintion are available in the official docker docs, or possibly the documentation for the image you're pulling.
@@ -151,5 +149,5 @@ Stores the command that the container is currently executing. The `rad.bash` scr
 This configures the ROS2 middleware to use the UDP protocol which improves compatability for communicating between different ros distros. It is unnecessary to touch this file unless you are an advanced user who wishes to enabled shared memory communication or employ a different ROS2 middleware. Also note that this file's path is loaded as an environment variable in `compose.yml`.
 
 ## Changing ROS distro
-By default, the workspace is configured to support ROS2 Humble. Hardware acceleration support is provided by the NVIDIA Isaac ROS container image, which is bundled with ROS2. If you wish to use a different distro, find an NVIDIA Isaac ROS docker image supporting the new distro, and grab image tags for both x86 and arm variants. Put the image tags into the service defintion `IMAGE` argument sections for both default services in `compose.yml`. Update sourcing paths in the `Dockerfile` as necessary. Update the `ROS_DISTRO` configuration variable and any dependent filepaths in the `rad.bash`. Rebuild and rerun.
+By default, the workspace is configured to support ROS2 Humble. If you wish to use a different distro, change the base image in the `Dockerfile`. Update sourcing paths in the `Dockerfile` as necessary. Remove all existing containers/images, rebuild and rerun.
 
