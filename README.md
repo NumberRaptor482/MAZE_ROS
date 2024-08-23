@@ -1,8 +1,8 @@
-# ROS2 Workspace Template for Remote Multi Architecture
-ROS2 workspace template that provides all the necessary tools for developing on remote and local containers across multiple architectures. Designed to be IDE and architecture agnostic for the host machine.
+# ROS2 Workspace Template for Remote Development
+ROS2 workspace template that provides all the necessary tools for developing on local containers and deplying to remote robots across multiple architectures. Designed to be IDE and architecture agnostic for the host machine.
 
 ## Conceptual summary
-This is a completely containerized workflow, meaning all ROS2 functionality runs inside of a docker container. At a baisc level, you can think of a docker container as an isolated OS running inside of your actual OS, but sharing the resources that you allow it access to. This means it has a completely different set of programs and OS configuration options. Anything running inside the container can only see what is available to it, and will behave as if it is running on "bare metal". Your ROS2 workspace is mounted as a volume in the container, thus the files are shared and updated between both the container and your host system. The docker container is built according to the `Dockerfile`. The container's operation is managed by docker compose, which turns your Dockerfile into a service with runtime proprties defined in `compose.yml`.
+This is a completely containerized workflow, meaning all ROS2 functionality runs inside of a docker container. At a baisc level, you can think of a docker container as an isolated OS running inside of your actual OS, but sharing the resources that you allow it access to. This means it has a completely different set of programs and OS configuration options. Anything running inside the container can only see what is available to it. Your ROS2 workspace is mounted as a volume in the container, thus the files are shared and updated between both the container and your host system. The container's operation is managed by docker compose, which turns the Dockerfile into a persistent container service with runtime properties.
 
 ## Prerequisites
 1. Host machine running Linux/MacOS with docker
