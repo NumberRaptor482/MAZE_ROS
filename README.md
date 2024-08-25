@@ -68,10 +68,10 @@ Here, a cross compilation workflow is achieved by chaining targets and subcomman
 
 #### Targets and subcommands list
 
-`sync`: syncs between local and remote systems
-* `-bin`: colcon binaries only
+`sync`: syncs local files to remote system, deleting extraneous files on remote
 * `-nd`: no delete extra files
-* `-r`: reverses direction to rx changes from remote, disables deletion
+* `-rv`: reverses direction (host pulls from remote), disables deletion
+* `-bin`: colcon binaries only
 
 `init`: removes old containers and builds a new docker image
 * `-r`: remote

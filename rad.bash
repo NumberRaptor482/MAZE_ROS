@@ -175,7 +175,7 @@ cmdval () {
 # By default excludes directories in RSYNC_EXCL
 # options: -bin (colcon binaries only)
 #          -nd (no delete extra files)
-#          -r (reverses direction, tx from remote to host, disables deletion)
+#          -rv (reverses direction, tx from remote to host, disables deletion)
 sync() {
     # Subcommand vars
     local bin=0
@@ -188,7 +188,7 @@ sync() {
         case "$arg" in
             -bin) bin=1 ;;
             -nd) nd="";;
-            -r) rev=1;;
+            -rv) rev=1;;
             *) log INIT $RD "Ignoring unsupported arg: $arg" ;;
         esac
     done
@@ -631,7 +631,7 @@ for target in "$@"; do
             ;;
 
         # Parse subcommand list here
-        -r|-i|-s|-c|-l|-m|-nc|-xc|-nd|-emu|-bin)
+        -r|-i|-s|-c|-l|-m|-nc|-xc|-nd|-rv|-emu|-bin)
             # Append subcommand to target
             tgtcall+="$target "
             ;;
