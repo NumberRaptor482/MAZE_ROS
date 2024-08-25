@@ -97,6 +97,14 @@ if [ "$UID" -eq 0 ]; then
     exit 1
 fi
 
+# Check if contianer directory exists
+if [ ! -d "./container" ]; then
+    log ERR $RD "No workspace container directory found!"
+    log ERR $RD "Ensure you only run this script at the workspace root on the host"
+    log ERR $RD "Exiting..."
+    exit 1
+fi
+
 # Automatically set host architecture
 if [ "$HOST_ARCH" == "auto" ]; then
     raw_arch=$(uname -m)
@@ -334,11 +342,12 @@ build() {
     fi
 }
 
-# Stops docker service and any additional services specified
-# Options: -r (remote), -emu (emulation)
+# Stops running docker services and any additional services specified in ADD_SRV_NM
+# Options: -r (remote)
 stop() {
     # Subcommand vars
     local rem=0
+    local containers=0
 
     # Parse subcommand args
     for arg in "$@"; do
