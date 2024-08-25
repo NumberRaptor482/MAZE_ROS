@@ -14,8 +14,8 @@
 #----------------------------------------------------{CONFIG}------------------------------------------------------
 # These can be freely configured to control behavior of the script
 CMD="echo \"Hello, world!\"" # Command to run on container init, escape any double quotes
-REM_USER="robot" # Name of the remote target's user, recommended to keep this default
 REM_HOSTNAME="127.0.0.1" # Enable remote commands
+REM_USER="robot" # Name of the remote target's user, recommended to keep this default
 HOST_ARCH="auto" # Architecture of the host machine (valid options: x86, arm, or auto)
 REM_ARCH="arm" # Architecture of the remote robot (valid options: x86, arm)
 STOP_MODE="stop" # Whether to stop containers gracefully or forcefully (valid options: stop, kill)
@@ -35,7 +35,8 @@ DOCKER_USER=ros
 DOCKER_DIR=/home/$DOCKER_USER/ws
 REM_DIR=/home/$REM_USER/local_ws
 REM_TGT="$REM_USER@$REM_HOSTNAME"
-SSH_OPTS="-o ConnectTimeout=5 -o LogLevel=ERROR -o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+SSH_CTRL="-o ControlMaster=auto -o ControlPath=~/.ssh/rad-%r@%h:%p -o ControlPersist=600" # SSH control master settings
+SSH_OPTS="$SSH_CTRL -o ConnectTimeout=5 -o LogLevel=ERROR -o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 RSYNC_EXCL="--exclude=rad.bash --exclude=README.md --exclude=.git --exclude=build --exclude=install --exclude=log"
 SSH_KEY=radlab_$(hostname -s)
 IMG_FILE=img_transfer_temp.tar
