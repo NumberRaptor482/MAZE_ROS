@@ -654,8 +654,9 @@ fi
 
 # Handle no argument case
 if [ $# == 0 ]; then
-    log INFO $CY "RAD.BASH v1.0"
-    log INFO $CY "Usage instructions are provided in the template README.md"
-    log INFO $CY "Please specify a target to proceed"
+    log INFO $CY "RAD.BASH v1.0 for remote"
+    log INFO $CY "Usage instructions are provided in the template README.md:"
+    log INFO $CY "https://github.com/tamu-edu/rad_lab_ros2ws/blob/remote/README.md"
+    log INFO $CY "Please specify a target to proceed..."
 fi
 #------------------------------------------------------------------------------------------------------------------
