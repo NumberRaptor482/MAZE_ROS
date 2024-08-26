@@ -99,7 +99,6 @@ Here, a cross compilation workflow is achieved by chaining targets and subcomman
 
 `status`: shows all containers and images relevant to workspace
 * `-r`: remote
-* `-m`: bare metal of remote
 
 `imgtx`: transfer the docker image from host to remote as compressed file
 * `-s`: push/pull image via registry server instead, requires REG_ADDR
@@ -149,4 +148,3 @@ This configures the ROS2 middleware to use the UDP protocol which improves compa
 
 ## Changing ROS distro
 By default, the workspace is configured to support ROS2 Humble. If you wish to use a different distro, change the base image in the `Dockerfile`. Update sourcing paths in the `Dockerfile` as necessary. Remove all existing containers/images, rebuild and rerun.
-

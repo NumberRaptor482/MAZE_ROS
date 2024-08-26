@@ -143,7 +143,12 @@ docexec () {
 	$DOCKER_CMD exec -it -w $DOCKER_DIR $LOC_SRV_NM /bin/bash -ic "$1"
 }
 
-# Same as above, but detaches instead of waiting
+# Same as above, but overrides container name with provided
+docexeco () {
+	$DOCKER_CMD exec -it -w $DOCKER_DIR $1 /bin/bash -ic "$2"
+}
+
+# Same as docexec, but detaches instead of waiting
 # Args: command (&& delineated if multiple, escape double quotes)
 docexecd () {
 	$DOCKER_CMD exec -itd -w $DOCKER_DIR $LOC_SRV_NM /bin/bash -ic "$1"
@@ -271,18 +276,22 @@ init() {
     fi
 }
 
-# Runs/restarts the container service and any additional services, updates robot command
+# Runs/restarts the container service and any additional services in compose.yml, updates robot command
 # Options: -r (remote), -emu (emulate remote arch on host)
 run() {
     # Subcommand vars
     local rem=0
-    local loc_tgt_serv=$LOC_SRV_NM # Change local target for emulation case
+    local loc_tgt_srv=$LOC_SRV_NM # Change local target for emulation case
+    local opp_loc_tgt=$REM_SRV_NM # Opposite of above for exclusive actions
 
     # Parse subcommand args
     for arg in "$@"; do
         case "$arg" in
             -r) rem=1 ;;
-            -emu) loc_tgt_serv=$REM_SRV_NM ;;
+            -emu)
+                loc_tgt_srv=$REM_SRV_NM
+                opp_loc_tgt=$LOC_SRV_NM
+                ;;
             *) log RUN $RD "Ignoring unsupported arg: $arg" ;;
         esac
     done
@@ -291,16 +300,16 @@ run() {
         # Run the local container
         cd $LOC_WS/container
         log RUN $CY "Stopping existing local containers"
-        $DOCKER_CMD compose $STOP_MODE $loc_tgt_serv $ADD_SRV_NM
+        $DOCKER_CMD compose $STOP_MODE
         log RUN $CY "Starting local container"
-        $DOCKER_CMD compose up -d $loc_tgt_serv $ADD_SRV_NM
+        $DOCKER_CMD compose up -d --scale $opp_loc_tgt=0 # starts everything EXCEPT the other target
         cmdval $? RUN $CY 1 "Local container start"
     else
         # Run the remote container
         log RUN $PL "Stopping existing remote containers"
-        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose $STOP_MODE $REM_SRV_NM $ADD_SRV_NM"
+        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose $STOP_MODE"
         log RUN $PL "Starting remote container"
-        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose up -d $REM_SRV_NM $ADD_SRV_NM"
+        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose up -d --scale $LOC_SRV_NM=0" # starts everything except the local
         cmdval $? RUN $PL 1 "Remote container start"
     fi
 }
@@ -312,6 +321,8 @@ build() {
     local rem=0
     local cache=""
     local pkgs=""
+    local loc_img="$LOC_SRV_NM"
+    local pos_imgs="$LOC_SRV_NM $REM_SRV_NM"
 
     # Parse subcommand args
     for arg in "$@"; do
@@ -329,10 +340,21 @@ build() {
 
     if [ $rem == 0 ]; then 
         # Build on the local container
+
+        # Check if emulated container
+        for image in $pos_imgs; do
+            docker ps | grep "$image" > /dev/null
+            if [ $? -eq 0 ]; then
+                loc_img="$image"
+                break
+            fi
+        done
+
+        # Build
         log BUILD $CY "Updating rosdeps on local container"
-        docexec ""
+        docexeco $loc_img ""
         log BUILD $CY "Running colcon build task on local container"
-        docexec "sudo chmod -R 777 . && $HNDL_ROSDEP && colcon build$cache$pkgs"
+        docexeco $loc_img "sudo chmod -R 777 . && $HNDL_ROSDEP && colcon build$cache$pkgs"
         cmdval $? BUILD $CY 1 "Local build task"
     else
         # Build on the remote container
@@ -342,7 +364,7 @@ build() {
     fi
 }
 
-# Stops running docker services and any additional services specified in ADD_SRV_NM
+# Stops running docker services and any additional services specified in compose.yml
 # Options: -r (remote)
 stop() {
     # Subcommand vars
@@ -361,22 +383,24 @@ stop() {
         # Stop the local container
         log STOP $CY "Stopping local container"
         cd $LOC_WS/container
-        $DOCKER_CMD compose $STOP_MODE $LOC_SRV_NM $ADD_SRV_NM
+        $DOCKER_CMD compose $STOP_MODE
         cmdval $? STOP $CY 1 "Local stop"
     else
         # Stop the remote container
         log STOP $PL "Stopping remote container"
-        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose $STOP_MODE $REM_SRV_NM $ADD_SRV_NM"
+        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose $STOP_MODE"
         cmdval $? STOP $PL 1 "Remote stop"
     fi
 }
 
 # Attaches to bash shell inside running container and/or robot
-# Options -r (inside remote container), -m (metal of remote robot), -l (log inside container), -emu (emulation)
+# Options -r (inside remote container), -m (metal of remote robot), -l (log inside container)
 attach() {
     # Subcommand vars
     local rem=0
     local log=0
+    local loc_img="$LOC_SRV_NM"
+    local pos_imgs="$LOC_SRV_NM $REM_SRV_NM"
 
     # Parse subcommand args
     for arg in "$@"; do
@@ -391,8 +415,19 @@ attach() {
     if [ $log == 0 ]; then
         if [ $rem == 0 ]; then
             # Local container
+            
+            # Check if emulated container
+            for image in $pos_imgs; do
+                docker ps | grep "$image" > /dev/null
+                if [ $? -eq 0 ]; then
+                    loc_img="$image"
+                    break
+                fi
+            done
+
+            # Attach
             log ATTACH $CY "Attaching to local container"
-            $DOCKER_CMD exec -it -w $DOCKER_DIR $LOC_SRV_NM /bin/bash
+            $DOCKER_CMD exec -it -w $DOCKER_DIR $loc_img /bin/bash
             log ATTACH $CY "Detached from local container"
         elif [ $rem ==  1 ]; then
             # Remote container
@@ -410,8 +445,8 @@ attach() {
             # Local container log
             cd $LOC_WS/container
             log ATTACH $CY "Attaching to local container log"
-            $DOCKER_CMD compose logs $LOC_SRV_NM | sed 's/^[^|]*| //'
-            $DOCKER_CMD attach $LOC_SRV_NM
+            $DOCKER_CMD compose logs $loc_img | sed 's/^[^|]*| //'
+            $DOCKER_CMD attach $loc_img
             log ATTACH $CY "Detached from local log"
         else
             # Remote container log
