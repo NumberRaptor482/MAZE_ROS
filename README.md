@@ -101,9 +101,8 @@ Here, a cross compilation workflow is achieved by chaining targets and subcomman
 * `-r`: remote
 * `-m`: bare metal of remote
 
-`imgtx`: transfer the docker image from host to client 
-* `-c`: compress and send image as a file
-* `-s`: push/pull image via registry server, requires REG_ADDR
+`imgtx`: transfer the docker image from host to remote as compressed file
+* `-s`: push/pull image via registry server instead, requires REG_ADDR
 
 `clnup`: removes all workspace related containers, including any specified in ADD_SRV_NM 
 * `-r`: remote

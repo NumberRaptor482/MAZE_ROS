@@ -19,12 +19,13 @@ REM_USER="robot" # Name of the remote target's user, recommended to keep this de
 HOST_ARCH="auto" # Architecture of the host machine (valid options: x86, arm, or auto)
 REM_ARCH="arm" # Architecture of the remote robot (valid options: x86, arm)
 STOP_MODE="stop" # Whether to stop containers gracefully or forcefully (valid options: stop, kill)
-REG_ADDR="127.0.0.1:5000" # Change to enable syncing container images via docker registry server, incl. port
 COLCON_PKGS="" # Specify ros packages to build, space delineated (leave blank for all)
 BINSYNC_PKGS="" # Specify ros packages to sync binaries for, space delineated (leave blank for all)
 HNDL_ROSDEP="rosdep install --from-paths src --ignore-src -r -y" # How rosdeps are updated after running container
 DOCKER_CMD="docker" # Change to use a different container helper (ex. podman), note this runs on both rem/host
 ADD_SRV_NM="" # Additional compose.yml services to run alongside the workspace service, space delineated
+REG_ADDR="127.0.0.1:5000" # Change to enable transfer container images via docker registry server, incl. port
+# Note: to use private registry, add the server to docker daemon.json insecure_registries list on both host/remote
 #------------------------------------------------------------------------------------------------------------------
 
 #----------------------------------------------------{CONSTS}------------------------------------------------------
@@ -39,7 +40,7 @@ SSH_CTRL="-o ControlMaster=auto -o ControlPath=~/.ssh/rad-%r@%h:%p -o ControlPer
 SSH_OPTS="$SSH_CTRL -o ConnectTimeout=5 -o LogLevel=ERROR -o BatchMode=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 RSYNC_EXCL="--exclude=rad.bash --exclude=README.md --exclude=.git --exclude=build --exclude=install --exclude=log"
 SSH_KEY=radlab_$(hostname -s)
-IMG_FILE=img_transfer_temp.tar
+IMG_FILE=imgtx_tmp.tar
 CMD_FILE=command.tmp
 #------------------------------------------------------------------------------------------------------------------
 
@@ -151,13 +152,13 @@ docexecd () {
 # Runs command inside remote docker container via ssh connection
 # Args: command (&& delineated if multiple, escape double quotes)
 sshdocexec () {
-	ssh -t $SSH_OPTS $REM_TGT "docker exec -it -w $DOCKER_DIR $REM_SRV_NM /bin/bash -ic \"$1\""
+	ssh -t $SSH_OPTS $REM_TGT "$DOCKER_CMD exec -it -w $DOCKER_DIR $REM_SRV_NM /bin/bash -ic \"$1\""
 }
 
 # Same as above, but detaches instead of waiting
 # Args: command (&& delineated if multiple, escape double quotes)
 sshdocexecd () {
-	ssh -t $SSH_OPTS $REM_TGT "docker exec -itd -w $DOCKER_DIR $REM_SRV_NM /bin/bash -ic \"$1\""
+	ssh -t $SSH_OPTS $REM_TGT "$DOCKER_CMD exec -itd -w $DOCKER_DIR $REM_SRV_NM /bin/bash -ic \"$1\""
 }
 
 # Check previous command for errors, notifies or kills entire script if necessary
@@ -204,8 +205,7 @@ sync() {
 
     # If binary mode, select only binary directories
     if [ $bin == 1 ]; then
-        nd="" # Override delete mode
-# To make a custom target, create a function here and add it to the arg parser in 
+        nd="" # Override delete mode 
         files="--include=install/" # Include directories
         if [ "$BINSYNC_PKGS" != "" ]; then
             for pkg in $BINSYNC_PKGS; do
@@ -257,14 +257,14 @@ init() {
         # Build the local image
         cd $LOC_WS/container
         log INIT $CY "Removing old local $loc_tgt_serv containers"
-        docker ps -a --filter "ancestor=$loc_tgt_serv" -q | xargs -r docker rm -f
+        $DOCKER_CMD ps -a --filter "ancestor=$loc_tgt_serv" -q | xargs -r $DOCKER_CMD rm -f
         log INIT $CY "Building new local $loc_tgt_serv image" 
         $DOCKER_CMD compose build $cache$loc_tgt_serv
         cmdval $? INIT $CY 1 "Local container build"
     else
         # Build the remote image
         log INIT $PL "Removing old remote $REM_SRV_NM containers"
-        sshexec "docker ps -a --filter "ancestor=$REM_SRV_NM" -q | xargs -r docker rm -f"
+        sshexec "$DOCKER_CMD ps -a --filter "ancestor=$REM_SRV_NM" -q | xargs -r $DOCKER_CMD rm -f"
         log INIT $PL "Building new remote $REM_SRV_NM image"
         sshexec "cd $REM_DIR/container; $DOCKER_CMD compose build $cache$REM_SRV_NM"
         cmdval $? INIT $PL 1 "Remote container build"
@@ -397,7 +397,7 @@ attach() {
         elif [ $rem ==  1 ]; then
             # Remote container
             log ATTACH $PL "Attaching to remote container"
-            sshexec "docker exec -it -w $DOCKER_DIR $REM_SRV_NM /bin/bash"
+            sshexec "$DOCKER_CMD exec -it -w $DOCKER_DIR $REM_SRV_NM /bin/bash"
             log ATTACH $PL "Detached from remote container"
         else
             # Bare metal
@@ -446,15 +446,15 @@ status() {
 
     if [ $rem == 0 ]; then
         # Local status
-        logf STATUS $CY "LOCAL CONTAINERS:$SV"
+        logf STATUS $CY "Local containers:$SV"
         $DOCKER_CMD ps -a | grep -e CONTAINER -e $LOC_SRV_NM -e $REM_SRV_NM$search
-        logf STATUS $CY "LOCAL IMAGES:$SV"
+        logf STATUS $CY "Local images:$SV"
         $DOCKER_CMD image ls -a | grep -e REPOSITORY -e $LOC_SRV_NM -e $REM_SRV_NM$search
     else
         # Remote status
-        logf STATUS $PL "REMOTE CONTAINERS:$SV"
+        logf STATUS $PL "Remote containers:$SV"
         sshexec "$DOCKER_CMD ps -a | grep -e CONTAINER -e $LOC_SRV_NM -e $REM_SRV_NM$search"
-        logf STATUS $PL "REMOTE IMAGES:$SV"
+        logf STATUS $PL "Remote images:$SV"
         sshexec "$DOCKER_CMD image ls -a | grep -e REPOSITORY -e $LOC_SRV_NM -e $REM_SRV_NM$search"
     fi
 }
@@ -486,9 +486,77 @@ cmd() {
     fi
 }
 
+# Transfer the docker image from host to remote as compressed file
+# Options: -s (push/pull image via registry server instead, requires REG_ADDR)
+imgtx() {
+    # Subcommand vars
+    local s=0
+
+    # Parse subcommand args
+    for arg in "$@"; do
+        case "$arg" in
+            -s) s=1 ;;
+            *) log IMGTX $RD "Ignoring unsupported arg: $arg" ;;
+        esac
+    done
+
+    if [ $s == 0 ]; then
+        # Use rsync to send
+        log IMGTX $CY "Moving local container to remote machine..."
+        
+        # Ensure temp file doesn't already exist
+        if [ -e "$IMG_FILE" ]; then \
+            rm -rfv $IMG_FILE; \
+        fi
+        
+        # Save the image
+        log IMGTX $CY "Saving image"
+        $DOCKER_CMD save $REM_SRV_NM:latest -o ./$IMG_FILE
+        cmdval $? IMGTX $CY 1 "Image save"
+        
+        # Transfer it
+        log IMGTX $PL "Transferring image"
+        rsync -avrz ./$IMG_FILE $REM_TGT:/home/robot/local_ws
+        cmdval $? IMGTX $PL 1 "Image transfer"
+        
+        # Remove local copy
+        rm -rfv $IMG_FILE;
+
+        # Remove old containers/images, load new one, delete temp file
+        log IMGTX $PL "Removing remote $REM_SRV_NM containers"
+        sshexec "$DOCKER_CMD ps -a --filter \"ancestor=$REM_SRV_NM\" -q | xargs -r $DOCKER_CMD rm -f"
+        log IMGTX $PL "Loading new image on remote"
+        sshexec "$DOCKER_CMD images --filter \"reference=$REM_SRV_NM\" -q | xargs -r $DOCKER_CMD rmi -f; $DOCKER_CMD load -i $REM_DIR/$IMG_FILE; rm -rfv $REM_DIR/$IMG_FILE"
+        cmdval $? IMGTX $PL 1 "Remote image load"
+    else
+        # Use registry server to transfer
+        log IMGTX $PL "Pushing local image to docker registry"
+        $DOCKER_CMD tag $REM_SRV_NM:latest $REG_ADDR/$REM_SRV_NM:latest
+        $DOCKER_CMD push $REG_ADDR/$REM_SRV_NM:latest
+        cmdval $? IMGTX $PL 1 "Image push"
+
+        # Remove remote tagged verison of image
+        $DOCKER_CMD rmi -f $REG_ADDR/$REM_SRV_NM:latest
+
+        # Remove old container and images from remote
+        log IMGTX $PL "Removing remote $REM_SRV_NM containers and images"
+        sshexec "$DOCKER_CMD ps -a --filter \"ancestor=$REM_SRV_NM\" -q | xargs -r $DOCKER_CMD rm -f; $DOCKER_CMD images --filter \"reference=$REM_SRV_NM\" -q | xargs -r $DOCKER_CMD rmi -f"
+        
+        # Pull new image
+        log IMGTX $PL "Pulling new image on remote"
+        sshexec "$DOCKER_CMD pull $REG_ADDR/$REM_SRV_NM:latest"
+        cmdval $? IMGTX $PL 1 "Image pull"
+        
+        # Tag remote image, remove old reference
+        sshexec "$DOCKER_CMD tag $REG_ADDR/$REM_SRV_NM:latest $REM_SRV_NM:latest; $DOCKER_CMD rmi -f $REG_ADDR/$REM_SRV_NM:latest"
+        log IMGTX $PL "Transfer via registry complete"
+    fi
+}
+
 # Removes all workspace related containers, including any specified in ADD_SRV_NM 
-# Options: -r (remote), -i (also remove images and prune dangling)
-clnup () {
+# Options: -r (remote)
+#          -i (also remove images and prune dangling)
+clnup() {
     # Subcommand vars
     local rem=0
     local img=0
@@ -505,71 +573,71 @@ clnup () {
     if [ $rem == 0 ]; then 
         # Remove containers
         log CLNUP $CY "Removing local containers linked to $LOC_SRV_NM"
-        docker ps -a --filter "ancestor=$LOC_SRV_NM" -q | xargs -r docker rm -f
+        $DOCKER_CMD ps -a --filter "ancestor=$LOC_SRV_NM" -q | xargs -r $DOCKER_CMD rm -f
         log CLNUP $CY "Removing local containers linked to $REM_SRV_NM"
-        docker ps -a --filter "ancestor=$REM_SRV_NM" -q | xargs -r docker rm -f
+        $DOCKER_CMD ps -a --filter "ancestor=$REM_SRV_NM" -q | xargs -r $DOCKER_CMD rm -f
 
         # Remove for any additional services
         if [ "$ADD_SRV_NM" != "" ]; then
             for srv in $ADD_SRV_NM; do
                 log CLNUP $CY "Removing local containers linked to $srv"
-                docker ps -a --filter "ancestor=$srv" -q | xargs -r docker rm -f
+                $DOCKER_CMD ps -a --filter "ancestor=$srv" -q | xargs -r $DOCKER_CMD rm -f
             done
         fi
 
         # Remove images
         if [ $img == 1 ]; then
             log CLNUP $CY "Removing local $LOC_SRV_NM images"
-            docker images --filter "reference=$LOC_SRV_NM" -q | xargs -r docker rmi -f
+            $DOCKER_CMD images --filter "reference=$LOC_SRV_NM" -q | xargs -r $DOCKER_CMD rmi -f
             log CLNUP $CY "Removing local $REM_SRV_NM images"
-            docker images --filter "reference=$REM_SRV_NM" -q | xargs -r docker rmi -f
+            $DOCKER_CMD images --filter "reference=$REM_SRV_NM" -q | xargs -r $DOCKER_CMD rmi -f
 
             # Remove for any additional services
             if [ "$ADD_SRV_NM" != "" ]; then
                 for srv in $ADD_SRV_NM; do
                     log CLNUP $CY "Removing local $srv images"
-                    docker images --filter "reference=$srv" -q | xargs -r docker rmi -f
+                    $DOCKER_CMD images --filter "reference=$srv" -q | xargs -r $DOCKER_CMD rmi -f
                 done
             fi
 
             # Remove dangling images
             log CLNUP $CY "Removing local dangling images"
-            docker image prune -f
+            $DOCKER_CMD image prune -f
         fi
         log CLNUP $CY "Local cleanup complete"
     else
         # Remove remote containers
         log CLNUP $PL "Removing remote containers linked to $LOC_SRV_NM"
-        sshexec "docker ps -a --filter \"ancestor=$LOC_SRV_NM\" -q | xargs -r docker rm -f"
+        sshexec "$DOCKER_CMD ps -a --filter \"ancestor=$LOC_SRV_NM\" -q | xargs -r $DOCKER_CMD rm -f"
         log CLNUP $PL "Removing remote containers linked to $REM_SRV_NM"
-        sshexec "docker ps -a --filter \"ancestor=$REM_SRV_NM\" -q | xargs -r docker rm -f"
+        sshexec "$DOCKER_CMD ps -a --filter \"ancestor=$REM_SRV_NM\" -q | xargs -r $DOCKER_CMD rm -f"
 
         # Remove for any additional services
         if [ "$ADD_SRV_NM" != "" ]; then
             for srv in $ADD_SRV_NM; do
                 log CLNUP $PL "Removing remote containers linked to $srv"
-                sshexec "docker ps -a --filter \"ancestor=$srv\" -q | xargs -r docker rm -f"
+                sshexec "$DOCKER_CMD ps -a --filter \"ancestor=$srv\" -q | xargs -r $DOCKER_CMD rm -f"
             done
         fi
 
         # Remove remote images
         if [ $img == 1 ]; then
             log CLNUP $PL "Removing remote $LOC_SRV_NM images"
-            sshexec "docker images --filter \"reference=$LOC_SRV_NM\" -q | xargs -r docker rmi -f"
+            sshexec "$DOCKER_CMD images --filter \"reference=$LOC_SRV_NM\" -q | xargs -r $DOCKER_CMD rmi -f"
             log CLNUP $PL "Removing remote $REM_SRV_NM images"
-            sshexec "docker images --filter \"reference=$REM_SRV_NM\" -q | xargs -r docker rmi -f"
+            sshexec "$DOCKER_CMD images --filter \"reference=$REM_SRV_NM\" -q | xargs -r $DOCKER_CMD rmi -f"
 
             # Remove for any additional services
             if [ "$ADD_SRV_NM" != "" ]; then
                 for srv in $ADD_SRV_NM; do
                     log CLNUP $PL "Removing remote $srv images"
-                    sshexec "docker images --filter \"reference=$srv\" -q | xargs -r docker rmi -f"
+                    sshexec "$DOCKER_CMD images --filter \"reference=$srv\" -q | xargs -r $DOCKER_CMD rmi -f"
                 done
             fi
 
             # Remove remote dangling images
             log CLNUP $PL "Removing remote dangling images"
-            sshexec "docker image prune -f"
+            sshexec "$DOCKER_CMD image prune -f"
         fi
         log CLNUP $PL "Remote cleanup complete"
     fi
@@ -598,7 +666,7 @@ sshcfg() {
     
     # Move key to remote
     log SSHCFG $PL "Transferring SSH public key to remote"
-    rsync -av --mkpath ~/.ssh/${SSH_KEY}.pub ${REM_USER}@${REM_HOSTNAME}:~/.ssh/authorized_keys/${SSH_KEY}.pub
+    rsync -av --mkpath ~/.ssh/$SSH_KEY.pub $REM_TGT:~/.ssh/authorized_keys/$SSH_KEY.pub
     cmdval $? SSHCFG $PL 1 "SSH key transfer"
 }
 
