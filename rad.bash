@@ -301,40 +301,27 @@ run() {
         esac
     done
 
-
-    log RUN $PL "is_remote is $rem "
-    log RUN $PL "is_emu is $emu "
-    log RUN $PL "the loc tgt srv is $loc_tgt_srv "
-    log RUN $PL "the opp tgt srv is $opp_loc_tgt "
-
-    log RUN $PL "the LOC_SRV_NM is $LOC_SRV_NM "
-    log RUN $PL "the REM_SRV_NM is $REM_SRV_NM "
+    # the below logic will select the opp_loc_tgt based on the -r, -emu flags and the architectures of the remote and host
 
     if [ $rem == 0 ]; then
         # triggered when we are running locally   
-        log RUN $PL " running locally"
 
         if [ $LOC_SRV_NM == $REM_SRV_NM ]; then
             # local and remote have the same arch
-            log RUN $PL "local and remote have the same arch"
 
             if [ $LOC_SRV_NM == "rad_arm" ]; then
-                log RUN $PL "a same arch was rad arm"
                 opp_loc_tgt="rad_x86"
             else
-                log RUN $PL "b same arch was x86 arm"
                 opp_loc_tgt="rad_arm"
             fi
         else
-            log RUN $PL "the remote and local branches have different architecture"
+            # the remote and local branches have different architecture
             
             if [ $emu == 0 ]; then
                 # triggered when we are emulating the remote architecture
-                log RUN $PL "c emulation off"
                 opp_loc_tgt=$REM_SRV_NM
             else
                 # triggered when we are not emulating the remote architecture
-                log RUN $PL "d emulation on"
                 opp_loc_tgt=$LOC_SRV_NM
             fi
 
@@ -343,33 +330,22 @@ run() {
        
     else
         # triggered when we are running remotely
-        log RUN $PL "remote"
 
         if [ $LOC_SRV_NM == $REM_SRV_NM ]; then
             # local and remote have the same arch
-            log RUN $PL "local and remote have the same arch"
 
             if [ $REM_SRV_NM == "rad_arm" ]; then
-                log RUN $PL "e same arch was rad arm"
                 opp_loc_tgt="rad_x86"
             else
-                log RUN $PL "f same arch was rad x86"
                 opp_loc_tgt="rad_arm"
             fi
         else
             # local and rem have diff archs
-            log RUN $PL "g diff archs"
             opp_loc_tgt=$LOC_SRV_NM
 
         fi
     fi
     
-
-    # if [ $LOC_SRV_NM == $REM_SRV_NM ]; then
-    #     log RUN $PL "l local and remote have the same arch"
-    # else
-    #     log RUN $PL "l the remote and local branches have different architecture"
-    # fi
 
     if [ $rem == 0 ]; then 
         # Run the local container
