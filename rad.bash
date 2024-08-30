@@ -14,7 +14,7 @@
 #----------------------------------------------------{CONFIG}------------------------------------------------------
 # These can be freely configured to control behavior of the script
 CMD="echo \"Hello, world!\"" # Command to run on container init, escape any double quotes
-REM_HOSTNAME="127.0.0.1" # Enable remote commands
+REM_HOSTNAME="192.168.8.2" # Enable remote commands
 REM_USER="robot" # Name of the remote target's user, recommended to keep this default
 HOST_ARCH="auto" # Architecture of the host machine (valid options: x86, arm, or auto)
 REM_ARCH="arm" # Architecture of the remote robot (valid options: x86, arm)
@@ -281,20 +281,71 @@ init() {
 run() {
     # Subcommand vars
     local rem=0
+    local emu=0
     local loc_tgt_srv=$LOC_SRV_NM # Change local target for emulation case
-    local opp_loc_tgt=$REM_SRV_NM # Opposite of above for exclusive actions
+    local opp_loc_tgt=$REM_SRV_NM # Opposite of above for exclusive actions - this is the platform that will not be run
+
+    
+   
+
 
     # Parse subcommand args
     for arg in "$@"; do
         case "$arg" in
-            -r) rem=1 ;;
+            -r) rem=1 
+                ;;
             -emu)
-                loc_tgt_srv=$REM_SRV_NM
-                opp_loc_tgt=$LOC_SRV_NM
+                emu=1
                 ;;
             *) log RUN $RD "Ignoring unsupported arg: $arg" ;;
         esac
     done
+
+    # the below logic will select the opp_loc_tgt based on the -r, -emu flags and the architectures of the remote and host
+
+    if [ $rem == 0 ]; then
+        # triggered when we are running locally   
+
+        if [ $LOC_SRV_NM == $REM_SRV_NM ]; then
+            # local and remote have the same arch
+
+            if [ $LOC_SRV_NM == "rad_arm" ]; then
+                opp_loc_tgt="rad_x86"
+            else
+                opp_loc_tgt="rad_arm"
+            fi
+        else
+            # the remote and local branches have different architecture
+            
+            if [ $emu == 0 ]; then
+                # triggered when we are emulating the remote architecture
+                opp_loc_tgt=$REM_SRV_NM
+            else
+                # triggered when we are not emulating the remote architecture
+                opp_loc_tgt=$LOC_SRV_NM
+            fi
+
+        fi
+
+       
+    else
+        # triggered when we are running remotely
+
+        if [ $LOC_SRV_NM == $REM_SRV_NM ]; then
+            # local and remote have the same arch
+
+            if [ $REM_SRV_NM == "rad_arm" ]; then
+                opp_loc_tgt="rad_x86"
+            else
+                opp_loc_tgt="rad_arm"
+            fi
+        else
+            # local and rem have diff archs
+            opp_loc_tgt=$LOC_SRV_NM
+
+        fi
+    fi
+    
 
     if [ $rem == 0 ]; then 
         # Run the local container
