@@ -14,7 +14,7 @@
 #----------------------------------------------------{CONFIG}------------------------------------------------------
 # These can be freely configured to control behavior of the script
 CMD="echo \"Hello, world!\"" # Command to run on container init, escape any double quotes
-REM_HOSTNAME="192.168.8.2" # Enable remote commands
+REM_HOSTNAME="127.0.0.1" # Enable remote commands
 REM_USER="robot" # Name of the remote target's user, recommended to keep this default
 HOST_ARCH="auto" # Architecture of the host machine (valid options: x86, arm, or auto)
 REM_ARCH="arm" # Architecture of the remote robot (valid options: x86, arm)
@@ -25,6 +25,7 @@ HNDL_ROSDEP="rosdep install --from-paths src --ignore-src -r -y" # How rosdeps a
 DOCKER_CMD="docker" # Change to use a different container helper (ex. podman), note this runs on both rem/host
 ADD_SRV_NM="" # Additional compose.yml services to run alongside the workspace service, space delineated
 REG_ADDR="127.0.0.1:5000" # Change to enable transfer container images via docker registry server, incl. port
+WS_NM_PFX="ros" # Unique prefix for service/container/image names from this workspace (change if multiple ws)
 # Note: to use private registry, add the server to docker daemon.json insecure_registries list on both host/remote
 #------------------------------------------------------------------------------------------------------------------
 
@@ -32,6 +33,7 @@ REG_ADDR="127.0.0.1:5000" # Change to enable transfer container images via docke
 # Warning: changing these might also require modifying this script's functionality or other workspace files
 LOC_WS=$(pwd)
 CMD_FILE="/container/command.tmp"
+SRV_PFX="${WS_NM_PFX}_rad_"
 DOCKER_USER=ros
 DOCKER_DIR=/home/$DOCKER_USER/ws
 REM_DIR=/home/$REM_USER/local_ws
@@ -130,8 +132,8 @@ if [ "$HOST_ARCH" == "auto" ]; then
 fi
 
 # Validation dependent vars
-LOC_SRV_NM="rad_${HOST_ARCH}"
-REM_SRV_NM="rad_${REM_ARCH}"
+LOC_SRV_NM="${SRV_PFX}${HOST_ARCH}"
+REM_SRV_NM="${SRV_PFX}${REM_ARCH}"
 #------------------------------------------------------------------------------------------------------------------
 
 #------------------------------------------------{MORE UTILITIES}--------------------------------------------------
@@ -185,6 +187,97 @@ cmdval () {
 #----------------------------------------------------{TARGETS}-----------------------------------------------------
 # All the functions that can be run as a script argument
 # To make a custom target, create a function here and add it to the arg parser in the next section
+
+# Lists all targets and subcommands alongside their descriptions
+help() {
+    local out=""
+
+    # Ignore subcommand args
+    for arg in "$@"; do
+        log HELP $RD "Ignoring unsupported arg: $arg"
+    done
+
+    out+="List of targets and subcommands:\n"
+
+    # Formatting template
+    # out+="\n$CY $SV: "
+    # out+="\n$CY    $SV: "
+    # out+="\n"
+
+    # help
+    out+="\n$CY help$SV: shows this message"
+    out+="\n"
+
+    # sync
+    out+="\n$CY sync$SV: syncs local files to remote system, deleting extraneous files on remote"
+    out+="\n$CY    -nd$SV: no delete extra files"
+    out+="\n$CY    -rv$SV: reverses direction (host pulls from remote), disables deletion"
+    out+="\n$CY    -bin$SV: colcon binaries only"
+    out+="\n"
+
+    # init
+    out+="\n$CY init$SV: removes old containers and builds a new docker image"
+    out+="\n$CY    -r$SV: remote"
+    out+="\n$CY    -nc$SV: no cache"
+    out+="\n$CY    -xc$SV: cross compile for remote arch on host"
+    out+="\n"
+
+    # run
+    out+="\n$CY run$SV: runs or restarts the container service (as well as any services in ADD_SRV_NM)"
+    out+="\n$CY    -r$SV: remote"
+    out+="\n$CY    -emu$SV: emulate remote arch on host"
+    out+="\n"
+
+    # cmd
+    out+="\n$CY cmd$SV: sets container command to what is configured in CMD"
+    out+="\n$CY    -r$SV: remote"
+    out+="\n"
+
+    # stop
+    out+="\n$CY stop$SV: stops container service (as well as any services in ADD_SRV_NM)"
+    out+="\n$CY    -r$SV: remote"
+    out+="\n"
+
+    # build
+    out+="\n$CY build$SV: performs colcon build operation on running container"
+    out+="\n$CY    -r$SV: remote"
+    out+="\n$CY    -nc$SV: no cache"
+    out+="\n"
+
+    # attach
+    out+="\n$CY attach$SV: attaches to bash shell inside running container"
+    out+="\n$CY    -r$SV: remote"
+    out+="\n$CY    -l$SV: show container log"
+    out+="\n$CY    -m$SV: attach to remote metal instead of container"
+    out+="\n"
+
+    # status
+    out+="\n$CY status$SV: shows all containers and images relevant to workspace"
+    out+="\n$CY    -r$SV: remote"
+    out+="\n"
+
+    # imgtx
+    out+="\n$CY imgtx$SV: transfer the docker image from host to remote as compressed file"
+    out+="\n$CY    -s$SV: push/pull image via registry server instead, requires REG_ADDR"
+    out+="\n"
+
+    # clnup
+    out+="\n$CY clnup$SV: removes all workspace related containers, including any specified in ADD_SRV_NM "
+    out+="\n$CY    -r$SV: remote"
+    out+="\n$CY    -i$SV: also remove images and prune dangling"
+    out+="\n"
+
+    # clk
+    out+="\n$CY clk$SV: syncs remote system clock with host"
+    out+="\n"
+
+    # sshcfg
+    out+="\n$CY sshcfg$SV: creates or uses existing SSH key on host and transfers to remote's authorized keys"
+    out+="\n"
+
+    # Output
+    log HELP $CY $out
+}
 
 # Syncs between local and remote systems
 # By default excludes directories in RSYNC_EXCL
@@ -285,10 +378,6 @@ run() {
     local loc_tgt_srv=$LOC_SRV_NM # Change local target for emulation case
     local opp_loc_tgt=$REM_SRV_NM # Opposite of above for exclusive actions - this is the platform that will not be run
 
-    
-   
-
-
     # Parse subcommand args
     for arg in "$@"; do
         case "$arg" in
@@ -301,18 +390,17 @@ run() {
         esac
     done
 
-    # the below logic will select the opp_loc_tgt based on the -r, -emu flags and the architectures of the remote and host
-
+    # Select the opp_loc_tgt based on the -r, -emu flags and the architectures of the remote and host
     if [ $rem == 0 ]; then
         # triggered when we are running locally   
 
         if [ $LOC_SRV_NM == $REM_SRV_NM ]; then
             # local and remote have the same arch
 
-            if [ $LOC_SRV_NM == "rad_arm" ]; then
-                opp_loc_tgt="rad_x86"
+            if [ $LOC_SRV_NM == "${SRV_PFX}arm" ]; then
+                opp_loc_tgt="${SRV_PFX}x86"
             else
-                opp_loc_tgt="rad_arm"
+                opp_loc_tgt="${SRV_PFX}arm"
             fi
         else
             # the remote and local branches have different architecture
@@ -330,14 +418,12 @@ run() {
        
     else
         # triggered when we are running remotely
-
         if [ $LOC_SRV_NM == $REM_SRV_NM ]; then
             # local and remote have the same arch
-
-            if [ $REM_SRV_NM == "rad_arm" ]; then
-                opp_loc_tgt="rad_x86"
+            if [ $REM_SRV_NM == "${SRV_PFX}arm" ]; then
+                opp_loc_tgt="${SRV_PFX}x86"
             else
-                opp_loc_tgt="rad_arm"
+                opp_loc_tgt="${SRV_PFX}arm"
             fi
         else
             # local and rem have diff archs
@@ -346,7 +432,6 @@ run() {
         fi
     fi
     
-
     if [ $rem == 0 ]; then 
         # Run the local container
         cd $LOC_WS/container
@@ -405,12 +490,12 @@ build() {
         log BUILD $CY "Updating rosdeps on local container"
         docexeco $loc_img ""
         log BUILD $CY "Running colcon build task on local container"
-        docexeco $loc_img "sudo chmod -R 777 . && $HNDL_ROSDEP && colcon build$cache$pkgs"
+        docexeco $loc_img "sudo chmod 777 . && $HNDL_ROSDEP && colcon build$cache$pkgs"
         cmdval $? BUILD $CY 1 "Local build task"
     else
         # Build on the remote container
         log BUILD $PL "Running colcon build task on remote container"
-        sshdocexec "sudo chmod -R 777 . && $HNDL_ROSDEP && colcon build$cache$pkgs"
+        sshdocexec "sudo chmod 777 . && $HNDL_ROSDEP && colcon build$cache$pkgs"
         cmdval $? BUILD $PL 1 "Remote build task"
     fi
 }
@@ -780,7 +865,7 @@ tgtcall=""
 for target in "$@"; do
     case "$target" in
         # Parse target list here
-        sync|init|test|run|build|attach|status|stop|cmd|clk|imgtx|clnup|sshcfg)
+        help|sync|init|run|build|attach|status|stop|cmd|clk|imgtx|clnup|sshcfg)
             # Run previous target w/ subcommands
             if [ $tgt_count -gt $prev_count ]; then
                 # log DEBUG $SV "Calling: $tgtcall"
@@ -818,7 +903,8 @@ fi
 # Handle no argument case
 if [ $# == 0 ]; then
     log INFO $CY "RAD.BASH v1.0 for remote"
-    log INFO $CY "Usage instructions are provided in the template README.md:"
+    log INFO $CY "Run 'rad help' for command arguments"
+    log INFO $CY "Further instructions are provided in the template README.md:"
     log INFO $CY "https://github.com/tamu-edu/rad_lab_ros2ws/blob/remote/README.md"
     log INFO $CY "Please specify a target to proceed..."
 fi

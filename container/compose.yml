@@ -1,6 +1,6 @@
 services:
-  rad_x86:
-    container_name: rad_x86
+  ros_rad_x86:
+    container_name: ros_rad_x86
     privileged: true
     network_mode: host
     restart: unless-stopped
@@ -20,9 +20,9 @@ services:
         USERNAME: ros
       platforms:
         - "linux/amd64"
-    image: rad_x86:latest
-  rad_arm:
-    container_name: rad_arm
+    image: ros_rad_x86:latest
+  ros_rad_arm:
+    container_name: ros_rad_arm
     privileged: true
     network_mode: host
     restart: unless-stopped
@@ -42,4 +42,4 @@ services:
         USERNAME: ros
       platforms:
         - "linux/arm64"
-    image: rad_arm:latest
+    image: ros_rad_arm:latest
