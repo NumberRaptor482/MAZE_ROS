@@ -65,6 +65,8 @@ Here, a cross compilation workflow is achieved by chaining targets and subcomman
 
 #### Targets and subcommands list
 
+`help`: lists all targets and subcommands alongside their descriptions
+
 `sync`: syncs local files to remote system, deleting extraneous files on remote
 * `-nd`: no delete extra files
 * `-rv`: reverses direction (host pulls from remote), disables deletion
