@@ -5,9 +5,10 @@ ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# Update ENVs
+# Update static ENVs
 ENV SHELL /bin/bash
 ENV TZ America/Chicago
+ENV TERM xterm-256color
 
 # Install additional system packages
 RUN apt-get update \

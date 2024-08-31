@@ -148,3 +148,6 @@ This configures the ROS2 middleware to use the UDP protocol which improves compa
 
 ## Changing ROS distro
 By default, the workspace is configured to support ROS2 Humble. If you wish to use a different distro, change the base image in the `Dockerfile`. Update sourcing paths in the `Dockerfile` as necessary. Remove all existing containers/images, rebuild and rerun.
+
+## Multiple workspaces
+If you are running multiple workspaces on the same machine: your services, containers, and images will need to be prefixed with a different name to avoid conflicts. To do this, change `WS_NM_PREFIX` in `rad.bash`. Also, add this prefix to the default service defintions, container names, and image names in `compose.yml` (a total of 6 lines). For instance, if your workspace prefix is `ball`, the `compose.yml` names should be updated to `ball_rad_x86`,  `ball_rad_arm`, etc. Note that these changes should be made project wide such that other machines which push to your robot use the same prefix.
