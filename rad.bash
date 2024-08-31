@@ -24,8 +24,8 @@ BINSYNC_PKGS="" # Specify ros packages to sync binaries for, space delineated (l
 HNDL_ROSDEP="rosdep install --from-paths src --ignore-src -r -y" # How rosdeps are updated after running container
 DOCKER_CMD="docker" # Change to use a different container helper (ex. podman), note this runs on both rem/host
 ADD_SRV_NM="" # Additional compose.yml services to run alongside the workspace service, space delineated
-REG_ADDR="127.0.0.1:5000" # Change to enable transfer container images via docker registry server, incl. port
 WS_NM_PFX="ros" # Unique prefix for service/container/image names from this workspace (change if multiple ws)
+REG_ADDR="127.0.0.1:5000" # Change to enable transfer container images via docker registry server, incl. port
 # Note: to use private registry, add the server to docker daemon.json insecure_registries list on both host/remote
 #------------------------------------------------------------------------------------------------------------------
 
