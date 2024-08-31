@@ -205,7 +205,7 @@ help() {
     # out+="\n"
 
     # help
-    out+="\n$CY help$SV: shows this message"
+    out+="\n$CY help$SV: lists all targets and subcommands alongside their descriptions"
     out+="\n"
 
     # sync
