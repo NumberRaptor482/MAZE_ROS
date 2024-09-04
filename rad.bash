@@ -87,6 +87,11 @@ logf () {
 sshexec () {
     ssh -t $SSH_OPTS $REM_TGT "$1"
 }
+
+# used when we don't need a pseudo-terminal
+sshexec_no_t () {
+    ssh $SSH_OPTS $REM_TGT "$1"
+}
 #------------------------------------------------------------------------------------------------------------------
 
 #--------------------------------------------------{VALIDATION}----------------------------------------------------
@@ -587,7 +592,8 @@ attach() {
         else
             # Remote container log
             log ATTACH $PL "Attaching to remote container log"
-            sshexec "cd $REM_DIR/container; $DOCKER_CMD compose logs $REM_SRV_NM | sed 's/^[^|]*| //'; $DOCKER_CMD attach $REM_SRV_NM"
+            sshexec_no_t "cd $REM_DIR/container; $DOCKER_CMD compose logs $REM_SRV_NM | sed 's/^[^|]*| //'; $DOCKER_CMD attach $REM_SRV_NM"
+            
             log ATTACH $PL "Detached from remote log"
         fi
     fi
