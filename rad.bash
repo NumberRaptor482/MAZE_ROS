@@ -450,7 +450,12 @@ run() {
         log RUN $PL "Stopping existing remote containers"
         sshexec "cd $REM_DIR/container; $DOCKER_CMD compose $STOP_MODE"
         log RUN $PL "Starting remote container"
-        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose up -d --scale $LOC_SRV_NM=0" # starts everything except the local
+        sshexec "cd $REM_DIR/container; $DOCKER_CMD compose up -d $REM_SRV_NM" # starts the remote target
+        if [ "$ADD_SRV_NM" != "" ]; then # iterates through the additional services and runs them
+                for srv in $ADD_SRV_NM; do
+                    sshexec "cd $REM_DIR/container; $DOCKER_CMD compose up -d $srv"
+                done
+            fi
         cmdval $? RUN $PL 1 "Remote container start"
     fi
 }
