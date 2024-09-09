@@ -61,6 +61,8 @@ cd $WS_DIR/container
 > $LOG_FILE
 cd $WS_DIR
 
+source $WS_DIR/install/local_setup.bash
+
 # Get the initial string from the first line of the file
 last_cmd=$(read_first_line)
 cur_cmd=$(read_first_line)
