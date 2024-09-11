@@ -40,7 +40,7 @@ An alias will allow you to call the script with `rad` instead of `./rad.bash`. T
 
 ```echo "alias rad='./rad.bash'" >> ~/.bashrc```
 
-On MacOS, this file may be called `~/.bash_profile` instead. Some OSes also have a `~/.bash_aliases` file you could use instead. Do not specify an absolute path to the script. Do not move the script. Things may break if you attempt to run it outside of the workspace root.
+On MacOS, this file may be called `~/.bash_profile` instead. Some OSes also have a `~/.bash_aliases` file you could use instead. Do not specify an absolute path to the script. Do not move the script. Things may break if you attempt to run it outside of the workspace root. By default MacOS uses the zsh terminal so you will need to adjust the `~/.zshrc` file.
 
 If you have a password set on your remote target and do not wish to enter it every time, run `rad sshconfig` (details below) to automatically generate/transfer your ssh public key. Note you must set the `REM_HOSTNAME` variable first, and that this will have to be done for each new remote target you add.
 
