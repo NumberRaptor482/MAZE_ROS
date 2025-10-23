@@ -6,13 +6,14 @@
 <sdf version="1.10">
   <world name="visualize_lidar_world">
     <physics name="10ms" type="ignored">
-      <max_step_size>0.01</max_step_size>
-      <real_time_factor>1.0</real_time_factor>
+      <max_step_size>0.0001</max_step_size>
+      <real_time_factor>0.1</real_time_factor>
     </physics>
     <plugin
       filename="gz-sim-physics-system"
       name="gz::sim::systems::Physics">
     </plugin>
+
     <plugin
       filename="gz-sim-sensors-system"
       name="gz::sim::systems::Sensors">
@@ -92,7 +93,6 @@
             </box>
           </geometry>
         </visual>
-
         <sensor name='gpu_lidar' type='gpu_lidar'>
           <topic>lidar</topic>
           <update_rate>10</update_rate>
@@ -138,6 +138,12 @@
             <izz>0.481014</izz>
           </inertia>
         </inertial>
+        <sensor name="imu_sensor" type="imu">
+          <always_on>1</always_on>
+          <update_rate>10</update_rate>
+          <visualize>false</visualize>
+          <topic>imu</topic>
+        </sensor>
         <visual name='visual'>
           <geometry>
             <box>
@@ -308,6 +314,74 @@
         </collision>
       </link>
 
+      <link name='caster_front'>
+        <pose>1.057138 -0 -0.125 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.1</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.1</iyy>
+            <iyz>0</iyz>
+            <izz>0.1</izz>
+          </inertia>
+        </inertial>
+        <visual name='visual'>
+          <geometry>
+            <sphere>
+              <radius>0.2</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0.2 0.2 0.2 1</ambient>
+            <diffuse>0.2 0.2 0.2 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+          </material>
+        </visual>
+        <collision name='collision'>
+          <geometry>
+            <sphere>
+              <radius>0.2</radius>
+            </sphere>
+          </geometry>
+        </collision>
+      </link>
+
+      <link name='caster'>
+        <pose>-0.057138 -0 -0.125 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.1</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.1</iyy>
+            <iyz>0</iyz>
+            <izz>0.1</izz>
+          </inertia>
+        </inertial>
+        <visual name='visual'>
+          <geometry>
+            <sphere>
+              <radius>0.2</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>0.2 0.2 0.2 1</ambient>
+            <diffuse>0.2 0.2 0.2 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+          </material>
+        </visual>
+        <collision name='collision'>
+          <geometry>
+            <sphere>
+              <radius>0.2</radius>
+            </sphere>
+          </geometry>
+        </collision>
+      </link>
+
       <joint name='lidar_sensor_joint' type='fixed'>
         <parent>chassis</parent>
         <child>lidar_link</child>
@@ -337,6 +411,18 @@
         </axis>
       </joint>
 
+      <joint name='caster_wheel' type='ball'>
+        <parent>chassis</parent>
+        <child>caster</child>
+      </joint>
+
+      <joint name='caster_front_wheel' type='ball'>
+        <parent>chassis</parent>
+        <child>caster_front</child>
+      </joint>
+
+      <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
+
       <plugin
         filename="gz-sim-diff-drive-system"
         name="gz::sim::systems::DiffDrive">
@@ -344,7 +430,7 @@
         <right_joint>right_wheel_joint</right_joint>
         <wheel_separation>1.25</wheel_separation>
         <wheel_radius>0.3</wheel_radius>
-        <odom_publish_frequency>20</odom_publish_frequency>
+        <odom_publish_frequency>100</odom_publish_frequency>
       </plugin>
     </model>
   </world>
