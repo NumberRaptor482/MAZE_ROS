@@ -1,0 +1,108 @@
+<!-- File: ~/your_ros2_workspace/src/mecabot_simulation/urdf/mecabot.urdf.xacro -->
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="mecabot">
+    <!-- Part 1: Define the robot's links (physical parts) -->
+    <link name="base_link">
+        <visual>
+            <geometry>
+                <box size="0.4 0.3 0.1"/>
+            </geometry>
+            <material name="blue">
+                <color rgba="0.2 0.4 0.8 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <geometry>
+                <box size="0.4 0.3 0.1"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <mass value="5.0"/>
+            <inertia ixx="0.04" ixy="0.0" ixz="0.0" iyy="0.07" iyz="0.0" izz="0.1"/>
+        </inertial>
+    </link>
+    <link name="caster_wheel">
+         <visual>
+            <geometry>
+                <sphere radius="0.05"/>
+            </geometry>
+            <material name="grey">
+                <color rgba="0.5 0.5 0.5 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <geometry>
+                <sphere radius="0.05"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <mass value="0.5"/>
+            <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+        </inertial>
+    </link>
+    <!-- Use a macro to create the two main wheels -->
+    <xacro:macro name="wheel" params="prefix">
+        <link name="${prefix}_wheel">
+            <visual>
+                <origin rpy="1.5707 0 0"/>
+                <geometry>
+                    <cylinder radius="0.1" length="0.05"/>
+                </geometry>
+                <material name="black">
+                    <color rgba="0.1 0.1 0.1 1.0"/>
+                </material>
+            </visual>
+            <collision>
+                <origin rpy="1.5707 0 0"/>
+                <geometry>
+                    <cylinder radius="0.1" length="0.05"/>
+                </geometry>
+            </collision>
+            <inertial>
+                <mass value="1.0"/>
+                <inertia ixx="0.005" ixy="0.0" ixz="0.0" iyy="0.005" iyz="0.0" izz="0.01"/>
+            </inertial>
+        </link>
+    </xacro:macro>
+    <xacro:wheel prefix="left"/>
+    <xacro:wheel prefix="right"/>
+    <!-- Part 2: Define the joints connecting the links -->
+    <joint name="left_wheel_joint" type="continuous">
+        <parent link="base_link"/>
+        <child link="left_wheel"/>
+        <origin xyz="0.1 0.175 0" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+    <joint name="right_wheel_joint" type="continuous">
+        <parent link="base_link"/>
+        <child link="right_wheel"/>
+        <origin xyz="0.1 -0.175 0" rpy="0 0 0"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+    <joint name="caster_wheel_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="caster_wheel"/>
+        <origin xyz="-0.1 0 -0.05" rpy="0 0 0"/>
+    </joint>
+    <!-- Part 3: Add the Gazebo plugin for movement -->
+    <gazebo>
+        <plugin name="differential_drive_controller" filename="libgazebo_ros_diff_drive.so">
+            <!-- Update rate in Hz -->
+            <update_rate>30</update_rate>
+            <!-- Wheel joint names -->
+            <left_joint>left_wheel_joint</left_joint>
+            <right_joint>right_wheel_joint</right_joint>
+            <!-- Kinematic properties -->
+            <wheel_separation>0.35</wheel_separation>
+            <wheel_diameter>0.2</wheel_diameter>
+            <!-- Output topics -->
+            <command_topic>cmd_vel</command_topic>
+            <odometry_topic>odom</odometry_topic>
+            <odometry_frame>odom</odometry_frame>
+            <robot_base_frame>base_link</robot_base_frame>
+            <publish_wheel_tf>true</publish_wheel_tf>
+            <publish_odom>true</publish_odom>
+            <publish_wheel_joint_state>true</publish_wheel_joint_state>
+        </plugin>
+    </gazebo>
+</robot>

@@ -1,0 +1,12 @@
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package='mecabot_move_pkg',
+            executable='move_in_square', # This is the new executable we will define
+            name='mecabot_square_node',
+            output='screen'
+        ),
+    ])
