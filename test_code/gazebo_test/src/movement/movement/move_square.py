@@ -6,6 +6,8 @@ from sensor_msgs.msg import Imu
 import math
 import time
 from tf_transformations import euler_from_quaternion
+from sensor_msgs.msg import LaserScan
+
 
 class MoveSquare(Node):
     def __init__(self):
@@ -18,6 +20,13 @@ class MoveSquare(Node):
         self.imu_sub_ = self.create_subscription(
             Imu, '/imu', self.imu_callback, 10
         )
+
+        self.subscription = self.create_subscription(
+            LaserScan,
+            '/lidar',
+            self.lidar_callback,
+            10)
+
         self.timer = self.create_timer(0.05, self.timer_callback)  # 20 Hz
         self.step = 0
         self.start_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
@@ -34,7 +43,23 @@ class MoveSquare(Node):
         self.rotational_velocity = 0
         self.current_time = 0
         self.rotation_start_time = 0
+        self.closest_object = 100000
+        time.sleep(10)
         
+
+    def lidar_callback(self, msg: LaserScan):
+        # Example: Print out some key info
+        self.get_logger().info(
+            f"Received scan with {len(msg.ranges)} ranges. "
+            f"Angle range: {msg.angle_min:.2f} to {msg.angle_max:.2f} radians."
+        )
+
+        # Example: Get the nearest distance (ignore inf/nan)
+        valid_ranges = [r for r in msg.ranges if r > 0.0 and r < float('inf')]
+        if valid_ranges:
+            min_distance = min(valid_ranges)
+            self.get_logger().info(f"Closest obstacle: {min_distance:.2f} m")
+            self.closest_object = min_distance
 
     def imu_callback(self, msg):
         sim_time = msg.header.stamp.sec + msg.header.stamp.nanosec / 10E9
@@ -87,12 +112,22 @@ class MoveSquare(Node):
     def straight(self):
         dist = math.sqrt((self.position['x'] - self.start_position['x']) ** 2 + (self.position['y'] - self.start_position['y']) ** 2)
 
-        return (dist > 1, (1.0, 0.0))
+        return (dist > 2, (1.0, 0.0))
 
     def timer_callback(self):
         msg = Twist()
         # msg.linear.x, msg.angular.z
 
+
+        if self.closest_object > 2:
+            msg.linear.x = 0.5
+            msg.angular.z = 0.0
+        else:
+            msg.angular.z = 0.5
+            msg.linear.x = 0.0
+
+        self.publisher_.publish(msg)
+        return
 
         if self.step == 0:
             result = self.straight()

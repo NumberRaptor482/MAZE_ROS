@@ -6,4 +6,7 @@ ros2 run ros_gz_bridge parameter_bridge /model/vehicle_blue/odometry@nav_msgs/ms
 ros2 run ros_gz_bridge parameter_bridge /model/vehicle_blue/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist &
 ros2 run ros_gz_bridge parameter_bridge /imu@sensor_msgs/msg/Imu@ignition.msgs.IMU &
 ros2 run movement move_square &
-ign gazebo -v4 --render-engine ogre -r visualize_lidar.sdf
+ign gazebo -v4 -r visualize_lidar.sdf
+
+# for newer ros
+gz sim -v 4 -r visualize_lidar.sdf

@@ -1,0 +1,2 @@
+install ros2
+install sudo apt install ros-<ros version>-ros-gz

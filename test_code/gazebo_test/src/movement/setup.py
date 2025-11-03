@@ -24,7 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'move_square = movement.move_square:main'
+            'move_square = movement.move_square:main',
+            'lidar_subscriber = movement.lidar_sub:main'
         ],
     },
 )
