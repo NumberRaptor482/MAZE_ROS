@@ -180,7 +180,7 @@
     </model>
 
     <model name='vehicle_blue'>
-      <pose>-4 0 0.325 0 0 1.57</pose>
+      <pose>-6 1 0.325 0 0 1.57</pose>
       <link name='chassis'>
         <pose>-0.151427 -0 0.175 0 -0 0</pose>
         <inertial>
@@ -248,8 +248,8 @@
               <horizontal>
                 <samples>50</samples>
                 <resolution>1</resolution>
-                <min_angle>-0.3745</min_angle>
-                <max_angle>0.3745</max_angle>
+                <min_angle>-1.5708</min_angle>
+                <max_angle>1.5708</max_angle>
               </horizontal>
               <vertical>
                 <samples>1</samples>
@@ -264,7 +264,6 @@
               <resolution>0.01</resolution>
             </range>
           </lidar>
-          <visualize>true</visualize>
         </sensor>
       </link>
 

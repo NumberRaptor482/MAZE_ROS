@@ -46,25 +46,42 @@ class MoveSquare(Node):
         self.closest_object = 100000
         self.closest_left = 10000
         self.closest_right = 10000
-        time.sleep(10)
+        self.angle_adjustment = 0
+        self.last_adjustment = -1000
+        self.is_turning = False
+        self.just_followed_path = False
         
 
     def lidar_callback(self, msg: LaserScan):
         # Example: Print out some key info
-        self.get_logger().info(
-            f"Received scan with {len(msg.ranges)} ranges. "
-            f"Angle range: {msg.angle_min:.2f} to {msg.angle_max:.2f} radians."
-        )
+        #self.get_logger().info(
+        #    f"Received scan with {len(msg.ranges)} ranges. "
+        #    f"Angle range: {msg.angle_min:.2f} to {msg.angle_max:.2f} radians."
+        #)
 
         # Example: Get the nearest distance (ignore inf/nan)
         valid_ranges = [r for r in msg.ranges if r > 0.0 and r < float('inf')]
         if valid_ranges:
             min_distance = min(valid_ranges)
-            self.get_logger().info(f"Closest obstacle: {min_distance:.2f} m")
-            self.closest_object = min(valid_ranges[len(valid_ranges)//3:2*len(valid_ranges)//3])
+            #self.get_logger().info(f"Closest obstacle: {min_distance:.2f} m")
+            self.closest_object = valid_ranges[len(valid_ranges)//2]
 
-            self.closest_left = min(valid_ranges[0:len(valid_ranges)//3])
-            self.closest_right = min(valid_ranges[2*len(valid_ranges)//3:])
+            self.closest_left = valid_ranges[-1]
+            self.closest_right = valid_ranges[0]
+            print(self.closest_left, self.closest_right)
+
+            l1 = valid_ranges[-1]
+            l2 = valid_ranges[-2]
+            if l2 - 0.005 > l1 / math.cos(math.radians(180/50)) or self.closest_right < 0.5:
+                self.angle_adjustment = -1 # turn left
+            elif l2 + 0.005 < l1 / math.cos(math.radians(180/50)) or self.closest_left < 0.5:
+                self.angle_adjustment = 1 # turn right
+            else:
+                self.angle_adjustment = 0
+            
+            if self.angle_adjustment == -1:
+                print("LEFT")
+            elif self.angle_adjustment == 1: print("RIGHT")
 
     def imu_callback(self, msg):
         sim_time = msg.header.stamp.sec + msg.header.stamp.nanosec / 10E9
@@ -123,6 +140,48 @@ class MoveSquare(Node):
         msg = Twist()
         # msg.linear.x, msg.angular.z
 
+        if self.closest_object < 1.1:
+            print("wall found", self.closest_object)
+            msg.linear.x = 0.0
+            msg.angular.z = -0.5
+            self.is_turning = True
+            self.publisher_.publish(msg)
+            time.sleep(1.5)
+            return
+        
+        if self.closest_left > 2 and not self.just_followed_path:
+            print("Found left path")
+            msg.linear.x = 0.25
+            self.publisher_.publish(msg)
+            time.sleep(3)
+
+            msg.linear.x = 0.0
+            msg.angular.z = 0.5
+            self.is_turning = True
+            self.publisher_.publish(msg)
+            time.sleep(2.8)
+            self.just_followed_path = True
+            return
+
+        msg.linear.x = 0.25 if not self.is_turning else 0.0
+        msg.angular.z = 0.0
+        if self.last_adjustment != self.angle_adjustment:
+            print("Adjusting")
+            self.last_adjustment = self.angle_adjustment
+            if self.angle_adjustment == -1:
+                msg.angular.z = 0.05
+            elif self.angle_adjustment == 1:
+                msg.angular.z = -0.05
+            else:
+                self.is_turning = False
+                if self.just_followed_path:
+                    self.just_followed_path = False
+                    msg.linear.x = 0.35
+                    self.publisher_.publish(msg)
+                    time.sleep(3.5)
+                msg.linear.x = 0.25
+            self.publisher_.publish(msg)
+
 
         if self.closest_object > 1:
             msg.linear.x = 0.5
@@ -130,11 +189,11 @@ class MoveSquare(Node):
         else:
             msg.angular.z = 0.5 if self.closest_left > self.closest_right else -0.5
             msg.linear.x = 0.0
-            self.publisher_.publish(msg)
-            time.sleep(1.57)
+            #self.publisher_.publish(msg)
+            time.sleep(0.157)
 
 
-        self.publisher_.publish(msg)
+        #self.publisher_.publish(msg)
         return
 
         if self.step == 0:
