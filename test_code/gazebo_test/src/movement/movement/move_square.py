@@ -44,6 +44,8 @@ class MoveSquare(Node):
         self.current_time = 0
         self.rotation_start_time = 0
         self.closest_object = 100000
+        self.closest_left = 10000
+        self.closest_right = 10000
         time.sleep(10)
         
 
@@ -59,7 +61,10 @@ class MoveSquare(Node):
         if valid_ranges:
             min_distance = min(valid_ranges)
             self.get_logger().info(f"Closest obstacle: {min_distance:.2f} m")
-            self.closest_object = min_distance
+            self.closest_object = min(valid_ranges[len(valid_ranges)//3:2*len(valid_ranges)//3])
+
+            self.closest_left = min(valid_ranges[0:len(valid_ranges)//3])
+            self.closest_right = min(valid_ranges[2*len(valid_ranges)//3:])
 
     def imu_callback(self, msg):
         sim_time = msg.header.stamp.sec + msg.header.stamp.nanosec / 10E9
@@ -119,12 +124,15 @@ class MoveSquare(Node):
         # msg.linear.x, msg.angular.z
 
 
-        if self.closest_object > 2:
+        if self.closest_object > 1:
             msg.linear.x = 0.5
             msg.angular.z = 0.0
         else:
-            msg.angular.z = 0.5
+            msg.angular.z = 0.5 if self.closest_left > self.closest_right else -0.5
             msg.linear.x = 0.0
+            self.publisher_.publish(msg)
+            time.sleep(1.57)
+
 
         self.publisher_.publish(msg)
         return
