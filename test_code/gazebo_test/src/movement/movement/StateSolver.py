@@ -58,6 +58,12 @@ class MoveSquare(Node):
     def lidar_callback(self, msg: LaserScan):
         if all(math.isinf(r) for r in msg.ranges):
             self.state = END
+            msg = Twist()
+            msg.linear.x = 0.0
+            msg.angular.z = 0.0
+            self.publisher_.publish(msg)
+            time.sleep(5)
+            exit()
             return
         # Example: Get the nearest distance (ignore inf/nan)
         valid_ranges = msg.ranges#[r for r in msg.ranges if r > 0.0 and r < float('inf')]
@@ -198,7 +204,7 @@ class MoveSquare(Node):
             self.delta_count += 1
         elif self.state == MOVE_FORWARD_AFTER_TURN:
             self.delta_count += 1
-            if self.delta_count >= abs(int(1.6 / (LINEAR_SPEED * 0.05 * time_scale))):
+            if self.delta_count >= abs(int(1.55 / (LINEAR_SPEED * 0.05 * time_scale))):
                 self.delta_count = 0
                 self.state = MOVE_FORWARD
 

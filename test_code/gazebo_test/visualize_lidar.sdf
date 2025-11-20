@@ -23,7 +23,7 @@
       name="gz::sim::systems::SceneBroadcaster">
     </plugin>
 
-    <gui fullscreen="0">
+    <gui fullscreen="true">
 
       <!-- 3D scene -->
       <plugin filename="MinimalScene" name="3D View">
@@ -37,7 +37,7 @@
         <scene>scene</scene>
         <ambient_light>0.4 0.4 0.4</ambient_light>
         <background_color>0.8 0.8 0.8</background_color>
-        <camera_pose>-6 0 6 0 0.5 0</camera_pose>
+        <camera_pose>0 0 10 0 1.570796 0</camera_pose>
       </plugin>
 
       <!-- Plugins that add functionality to the scene -->
@@ -122,22 +122,22 @@
         <iterations>true</iterations>
       </plugin>
 
+<!--
       <plugin filename="VisualizeLidar" name="Visualize Lidar">
       </plugin>
 
-      <!-- Inspector -->
       <plugin filename="ComponentInspector" name="Component inspector">
         <gz-gui>
           <property type="string" key="state">docked</property>
         </gz-gui>
       </plugin>
 
-      <!-- Entity tree -->
+       Entity tree
       <plugin filename="EntityTree" name="Entity tree">
         <gz-gui>
           <property type="string" key="state">docked</property>
         </gz-gui>
-      </plugin>
+      </plugin>-->
     </gui>
 
     <light type="directional" name="sun">
