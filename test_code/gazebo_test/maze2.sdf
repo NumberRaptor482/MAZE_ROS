@@ -614,6 +614,116 @@
           <emissive>0 0 0 1</emissive>
         </material>
       </visual>
+    </link>    <link name="wall_27">
+      <pose>10.0 12.0 1.0 0 0 1.5707963267948966</pose>
+      <collision name="wall_27_collision">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="wall_27_visual">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0 1 0 1</ambient>
+          <diffuse>0 1 0 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+          <emissive>0 0 0 1</emissive>
+        </material>
+      </visual>
+    </link>    <link name="wall_28">
+      <pose>12.0 10.0 1.0 0 0 0</pose>
+      <collision name="wall_28_collision">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="wall_28_visual">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+          <emissive>0 0 0 1</emissive>
+        </material>
+      </visual>
+    </link>    <link name="wall_29">
+      <pose>6.0 12.0 1.0 0 0 0</pose>
+      <collision name="wall_29_collision">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="wall_29_visual">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+          <emissive>0 0 0 1</emissive>
+        </material>
+      </visual>
+    </link>    <link name="wall_30">
+      <pose>8.0 14.0 1.0 0 0 0</pose>
+      <collision name="wall_30_collision">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="wall_30_visual">
+        <geometry>
+          <box>
+            <size>4.0 0.1 2.5</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+          <emissive>0 0 0 1</emissive>
+        </material>
+      </visual>
+    </link>    <link name="wall_31">
+      <pose>12.0 13.0 1.0 0 0 1.5707963267948966</pose>
+      <collision name="wall_31_collision">
+        <geometry>
+          <box>
+            <size>2.0 0.1 2.5</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="wall_31_visual">
+        <geometry>
+          <box>
+            <size>2.0 0.1 2.5</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0 1 0 1</ambient>
+          <diffuse>0 1 0 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+          <emissive>0 0 0 1</emissive>
+        </material>
+      </visual>
     </link>
   </model>
 </sdf>

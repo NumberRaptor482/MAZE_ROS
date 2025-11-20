@@ -8,47 +8,86 @@ import time
 from tf_transformations import euler_from_quaternion
 from sensor_msgs.msg import LaserScan
 
+time_scale = 1.0
+
 
 class MoveSquare(Node):
     def __init__(self):
         super().__init__('move_square')
         # Publisher for /cmd_vel
         self.publisher_ = self.create_publisher(Twist, '/model/vehicle_blue/cmd_vel', 1)
-        # Subscriber for /model/vehicle_blue/odometry
+
+        # Subscriber for odometry data
         self.odom_sub_ = self.create_subscription(
             Odometry, '/model/vehicle_blue/odometry', self.odom_callback, 10)
+        
+        # Subscriber for IMU data
         self.imu_sub_ = self.create_subscription(
             Imu, '/imu', self.imu_callback, 10
         )
 
+        # Subscriber for LIDAR data
         self.subscription = self.create_subscription(
             LaserScan,
             '/lidar',
             self.lidar_callback,
             10)
 
-        self.timer = self.create_timer(0.05, self.timer_callback)  # 20 Hz
+        # Timer for velocity updates
+        self.timer = self.create_timer(0.05, self.timer_callback)
+
+        # current state. Used for moving in square, not for current algorithm
         self.step = 0
+
+        # initial position of movement
         self.start_position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
+
+        # starting angle used for integration of IMU data, maybe
         self.start_angle = 0
+
+        # current position of robot based either on IMU or odometry data
         self.position = {'x': 0.0, 'y': 0.0, 'theta': 0.0}
+
+        # movement parameters for following square path
         self.target_distance = 1.0  # 1m per side of square
         self.turn_duration = 1.963  # Time for ~90-degree turn (calibrated)
         self.linear_speed = 0.5  # m/s (matches odometry linear.x)
         self.angular_speed = 0.8  # rad/s (tuned for ~90 deg)
-        self.turn_start_time = None
+
+        # time since start of pause. Pause is not used in current algorithm
         self.stop_time = 0
+
+        # target angle for rotation. Not used in current algorithm
         self.target_angle = 90
+
+        # last IMU update time and last rotational velocity. Not used in current algorithm
         self.last_imu_update = 0
         self.rotational_velocity = 0
+
+        # current time in simulation
         self.current_time = 0
+
+        # time since start of rotation. Not use in current algorithm
         self.rotation_start_time = 0
-        self.closest_object = 100000
+
+        # distance to nearest object in front of robot
+        self.closest_front = 100000
+
+        # distance to nearest object on left and right
         self.closest_left = 10000
         self.closest_right = 10000
+
+        # direction of angle adjustment based on LIDAR. Either -1 (left), 0 (none), or 1 (right)
         self.angle_adjustment = 0
+
+        # last direction of angle adjustment. Used to prevent sending the same message multiple times
         self.last_adjustment = -1000
+
+        # true if the robot is currently turning
         self.is_turning = False
+
+        # true if the robot just made a turn
+        # this is necessary to prevent it from turning immediately again when it sees the path that it just came from
         self.just_followed_path = False
         
 
@@ -64,8 +103,8 @@ class MoveSquare(Node):
         if valid_ranges:
             min_distance = min(valid_ranges)
             #self.get_logger().info(f"Closest obstacle: {min_distance:.2f} m")
-            self.closest_object = valid_ranges[len(valid_ranges)//2]
-
+            #if len(valid_ranges) >= 1:
+            self.closest_front = valid_ranges[len(valid_ranges)//2]
             self.closest_left = valid_ranges[-1]
             self.closest_right = valid_ranges[0]
             print(self.closest_left, self.closest_right)
@@ -140,26 +179,33 @@ class MoveSquare(Node):
         msg = Twist()
         # msg.linear.x, msg.angular.z
 
-        if self.closest_object < 1.1:
-            print("wall found", self.closest_object)
+        if self.closest_front > 100 and self.closest_left > 100 and self.closest_right > 100:
+            print("Found end of maze")
+            msg.linear.x = 0.0
+            msg.angular.z = 0.0
+            self.publisher_.publish(msg)
+            return
+
+        if self.closest_front < 1.1:
+            print("wall found", self.closest_front)
             msg.linear.x = 0.0
             msg.angular.z = -0.5
             self.is_turning = True
             self.publisher_.publish(msg)
-            time.sleep(1.5)
+            time.sleep(1.5 / time_scale)
             return
         
         if self.closest_left > 2 and not self.just_followed_path:
             print("Found left path")
             msg.linear.x = 0.25
             self.publisher_.publish(msg)
-            time.sleep(3)
+            time.sleep(3 / time_scale)
 
             msg.linear.x = 0.0
             msg.angular.z = 0.5
             self.is_turning = True
             self.publisher_.publish(msg)
-            time.sleep(2.8)
+            time.sleep(2.8 / time_scale)
             self.just_followed_path = True
             return
 
@@ -178,19 +224,19 @@ class MoveSquare(Node):
                     self.just_followed_path = False
                     msg.linear.x = 0.35
                     self.publisher_.publish(msg)
-                    time.sleep(3.5)
+                    time.sleep(4.0 / time_scale)
                 msg.linear.x = 0.25
             self.publisher_.publish(msg)
 
 
-        if self.closest_object > 1:
-            msg.linear.x = 0.5
-            msg.angular.z = 0.0
-        else:
-            msg.angular.z = 0.5 if self.closest_left > self.closest_right else -0.5
-            msg.linear.x = 0.0
-            #self.publisher_.publish(msg)
-            time.sleep(0.157)
+        #if self.closest_front > 1:
+        #    msg.linear.x = 0.5
+        #    msg.angular.z = 0.0
+        #else:
+        #    msg.angular.z = 0.5 if self.closest_left > self.closest_right else -0.5
+        #    msg.linear.x = 0.0
+        #    #self.publisher_.publish(msg)
+        #    time.sleep(0.157 / 10)
 
 
         #self.publisher_.publish(msg)

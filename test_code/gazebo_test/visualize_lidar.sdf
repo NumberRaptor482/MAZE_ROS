@@ -155,12 +155,13 @@
     </light>
 
     <model name="ground_plane">
+      <pose>0 0 0 0 0 0</pose>
       <static>true</static>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>20 20 0.1</size>
+              <size>18 18 0.1</size>
             </box>
           </geometry>
         </collision>
@@ -180,7 +181,7 @@
     </model>
 
     <model name='vehicle_blue'>
-      <pose>-6 1 0.325 0 0 1.57</pose>
+      <pose>1 -7 0.325 0 0 1.57</pose>
       <link name='chassis'>
         <pose>-0.151427 -0 0.175 0 -0 0</pose>
         <inertial>
@@ -419,7 +420,7 @@
     </model>
 
     <include>
-      <pose>-13 0 0 0 0 0</pose>
+      <pose>-8 -8 0 0 0 0</pose>
       <uri>maze2.sdf</uri>
     </include>
   </world>
