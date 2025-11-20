@@ -67,10 +67,10 @@ class MoveSquare(Node):
             self.closest_right = valid_ranges[0]
 
             print(self.closest_left)
-            if self.closest_left < 0.4:
+            if self.closest_left < 0.25:
                 self.angle_adjustment = -1
                 return
-            if self.closest_right < 0.4:
+            if self.closest_right < 0.25:
                 self.angle_adjustment = 1
                 return
 

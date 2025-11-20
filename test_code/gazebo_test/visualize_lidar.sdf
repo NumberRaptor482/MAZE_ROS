@@ -198,7 +198,7 @@
         <visual name='visual'>
           <geometry>
             <box>
-              <size>1.01142 1 0.568726</size>
+              <size>0.8 1 0.568726</size>
             </box>
           </geometry>
           <material>
@@ -210,7 +210,7 @@
         <collision name='collision'>
           <geometry>
             <box>
-              <size>1.01142 1 0.568726</size>
+              <size>0.8 1 0.568726</size>
             </box>
           </geometry>
         </collision>
@@ -341,7 +341,7 @@
       </link>
 
       <link name='caster'>
-        <pose>-0.557138 -0 -0.125 0 -0 0</pose>
+        <pose>-0.457138 -0 -0.125 0 -0 0</pose>
         <inertial>
           <mass>1</mass>
           <inertia>
