@@ -181,7 +181,7 @@
     </model>
 
     <model name='vehicle_blue'>
-      <pose>1 -7 0.325 0 0 1.57</pose>
+      <pose>-1 -7 0.325 0 0 1.57</pose>
       <link name='chassis'>
         <pose>-0.151427 -0 0.175 0 -0 0</pose>
         <inertial>

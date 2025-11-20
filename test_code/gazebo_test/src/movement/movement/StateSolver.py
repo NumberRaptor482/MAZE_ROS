@@ -66,16 +66,35 @@ class MoveSquare(Node):
             self.closest_left = valid_ranges[-1]
             self.closest_right = valid_ranges[0]
 
-            if valid_ranges[-1] != float('inf') and valid_ranges[-2] != float('inf'):
-                l1 = valid_ranges[-1]
-                l2 = valid_ranges[-2]
+            print(self.closest_left)
+            if self.closest_left < 0.4:
+                self.angle_adjustment = -1
+                return
+            if self.closest_right < 0.4:
+                self.angle_adjustment = 1
+                return
+
+            line1 = 0 # hypotenuse
+            line2 = 0 # adjacent
+
+            if valid_ranges[-1] - 1 > valid_ranges[0]:
+                line1 = valid_ranges[1]
+                line2 = valid_ranges[0]
+                using_right = True
             else:
-                l1 = 1
-                l2 = 1
-            if l2 - 0.01 > l1 / math.cos(math.radians(180/50)) or self.closest_right < 0.8:
-                self.angle_adjustment = -1 # turn left
-            elif l2 + 0.01 < l1 / math.cos(math.radians(180/50)) or self.closest_left < 0.8:
-                self.angle_adjustment = 1 # turn right
+                line1 = valid_ranges[-2]
+                line2 = valid_ranges[-1]
+                using_right = False
+
+
+            if line1 == float('inf') or line2 == float('inf'):
+                self.angle_adjustment = 0
+                return
+
+            if line2 - 0.002 > line1 / math.cos(math.radians(180/50)):
+                self.angle_adjustment = -1 if using_right else 1 # turn left
+            elif line2 + 0.002 < line1 / math.cos(math.radians(180/50)):
+                self.angle_adjustment = 1 if using_right else -1 # turn right
             else:
                 self.angle_adjustment = 0
 
@@ -85,20 +104,22 @@ class MoveSquare(Node):
         # msg.linear.x, msg.angular.z
         if self.state == MOVE_FORWARD or self.state == SLOW_AFTER_FORWARD or self.state == VERY_SLOW_AFTER_FORWARD or self.state == MOVE_FORWARD_SLOWLY_AFTER_NEW_PATH_FOUND:
             if self.state == VERY_SLOW_AFTER_FORWARD:
-                msg.linear.x = LINEAR_SPEED * 0.3
+                msg.linear.x = LINEAR_SPEED# * 0.3
             elif self.state == SLOW_AFTER_FORWARD or self.state == MOVE_FORWARD_SLOWLY_AFTER_NEW_PATH_FOUND:
-                msg.linear.x = LINEAR_SPEED * 0.7
+                msg.linear.x = LINEAR_SPEED# * 0.7
             else:
                 msg.linear.x = LINEAR_SPEED
             
             if self.angle_adjustment == -1 or self.closest_right < 0.95:
                 if self.closest_right < 0.9:
                     print("TOO CLOSE RIGHT")
-                msg.angular.z = -ANGULAR_SPEED / 4 # left
+                msg.angular.z = -ANGULAR_SPEED / 6 # left
+                msg.linear.x *= 1.0
             elif self.angle_adjustment == 1 or self.closest_left < 0.95:
                 if self.closest_left < 0.9:
                     print("TOO CLOSE LEFT")
-                msg.angular.z = ANGULAR_SPEED / 4 # right
+                msg.angular.z = ANGULAR_SPEED / 6 # right
+                msg.linear.x *= 1.0
             else:
                 msg.angular.z = 0.0
         elif self.state == MOVE_LEFT_FROM_WALL or self.state == TURN_LEFT_AFTER_NEW_PATH_FOUND:
@@ -107,9 +128,9 @@ class MoveSquare(Node):
         elif self.state == FINE_ANGLE_ADJUSTMENT_FROM_WALL or self.state == FINE_ANGLE_AFTER_NEW_PATH_FOUND:
             msg.linear.x = 0.0
             if self.angle_adjustment == -1:
-                msg.angular.z = -ANGULAR_SPEED / 4
+                msg.angular.z = -ANGULAR_SPEED / 8
             elif self.angle_adjustment == 1:
-                msg.angular.z = ANGULAR_SPEED / 4
+                msg.angular.z = ANGULAR_SPEED / 8
             else:
                 msg.angular.z = 0.0
         elif self.state == MOVE_FORWARD_AFTER_NEW_PATH_FOUND or self.state == MOVE_FORWARD_AFTER_TURN:
@@ -159,20 +180,25 @@ class MoveSquare(Node):
                 self.delta_count = 0
                 self.state = FINE_ANGLE_ADJUSTMENT_FROM_WALL
         elif self.state == FINE_ANGLE_ADJUSTMENT_FROM_WALL:
-            if self.angle_adjustment == 0:
+            self.delta_count += 1
+            print(self.delta_count, abs(int(1 / (ANGULAR_SPEED / 4 * 0.05 * time_scale))))
+            if self.angle_adjustment == 0 or self.delta_count >= abs(int(1 / (ANGULAR_SPEED / 4 * 0.05 * time_scale))):
                 self.state = MOVE_FORWARD
+                self.delta_count = 0
         elif self.state == TURN_LEFT_AFTER_NEW_PATH_FOUND:
             self.delta_count += 1
             if self.delta_count >= abs(int(1.8 / (ANGULAR_SPEED * 0.05 * time_scale))):
                 self.delta_count = 0
                 self.state = FINE_ANGLE_AFTER_NEW_PATH_FOUND
         elif self.state == FINE_ANGLE_AFTER_NEW_PATH_FOUND:
-            if self.angle_adjustment == 0 or self.delta_count >= abs(int(1.0 / (ANGULAR_SPEED / 4 * 0.05 * time_scale))):
+            print(self.delta_count, abs(int(2 / (ANGULAR_SPEED / 4 * 0.05 * time_scale))))
+            if self.angle_adjustment == 0 or self.delta_count >= abs(int(1 / (ANGULAR_SPEED / 4 * 0.05 * time_scale))):
                 self.state = MOVE_FORWARD_AFTER_TURN
+                self.delta_count = 0
             self.delta_count += 1
         elif self.state == MOVE_FORWARD_AFTER_TURN:
             self.delta_count += 1
-            if self.delta_count >= abs(int(1.4 / (LINEAR_SPEED * 0.05 * time_scale))):
+            if self.delta_count >= abs(int(1.6 / (LINEAR_SPEED * 0.05 * time_scale))):
                 self.delta_count = 0
                 self.state = MOVE_FORWARD
 
