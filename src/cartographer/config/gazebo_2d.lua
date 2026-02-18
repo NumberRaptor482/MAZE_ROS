@@ -14,7 +14,7 @@ options = {
   map_frame = "map",
   tracking_frame = "vehicle_blue/chassis",
   published_frame = "vehicle_blue/chassis",
-  odom_frame = "vehicle_blue/odom",
+  odom_frame = "vehicle_blue/odometry",
 
 
   provide_odom_frame = true,

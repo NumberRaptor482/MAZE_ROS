@@ -421,7 +421,7 @@
 
     <include>
       <pose>-8 -8 0 0 0 0</pose>
-      <uri>maze2.sdf</uri>
+      <uri>sim/maze2.sdf</uri>
     </include>
   </world>
 </sdf>
