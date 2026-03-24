@@ -14,11 +14,10 @@ options = {
   map_frame = "map",
   tracking_frame = "vehicle_blue/chassis",
   published_frame = "vehicle_blue/chassis",
-  odom_frame = "vehicle_blue/odometry",
 
 
-  provide_odom_frame = true,
-  use_odometry = true,
+  provide_odom_frame = false,
+  use_odometry = false,
 
   num_laser_scans = 1,
   num_point_clouds = 0,
@@ -29,7 +28,7 @@ options = {
   trajectory_publish_period_sec = 30e-3,
 
   rangefinder_sampling_ratio = 1.,
-  odometry_sampling_ratio = 1.,
+  odometry_sampling_ratio = 0,
   use_nav_sat = false,
   use_landmarks = false,
   publish_frame_projected_to_2d = true,
@@ -37,7 +36,7 @@ options = {
   num_subdivisions_per_laser_scan = 1,
   num_point_clouds = 0,
   rangefinder_sampling_ratio = 1,
-  odometry_sampling_ratio = 1,
+  odometry_sampling_ratio = 0,
   fixed_frame_pose_sampling_ratio = 0,
   imu_sampling_ratio = 0,
   landmarks_sampling_ratio = 0,
@@ -51,5 +50,8 @@ MAP_BUILDER.use_trajectory_builder_2d = true
 TRAJECTORY_BUILDER_2D.min_range = 0.1
 TRAJECTORY_BUILDER_2D.max_range = 8.0
 TRAJECTORY_BUILDER_2D.use_imu_data = false
+TRAJECTORY_BUILDER.use_odometry = false
+MAP_BUILDER.use_odometry = false
 
 return options
+

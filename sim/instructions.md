@@ -40,3 +40,15 @@ ros2 run cartographer_ros cartographer_occupancy_grid_node -resolution 0.05
 ```bash
 rviz2
 ```
+
+8. Simulate movement
+```bash
+ros2 topic pub /model/vehicle_blue/cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.1}, angular: {z: 0.0}}' --rate 10
+```
+connect to physical lidar
+```bash
+ros2 launch rplidar_ros view_rplidar_a1_launch.py
+```
+
+for using physical lidar
+ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 vehicle_blue/chassis laser

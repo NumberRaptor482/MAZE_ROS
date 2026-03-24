@@ -24,7 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'do_nothing = motion_planner.do_nothing:main'
+            'do_nothing = motion_planner.do_nothing:main',
+            'step_mover = motion_planner.step_mover:main'
         ],
     },
 )
