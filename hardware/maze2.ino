@@ -35,12 +35,11 @@ const double MAX_SPEED = 2500;
 const double BASE_POWER = 30;
 const int PWM_MAX = 150; // max speed. 255 is very fast
 const int PWM_MIN  = 60; // min speed. Going below this will make the motors stall
-double kp = 1.0;
-double ki = 0.6;
-double kd = 0.0;
-
+double kp = 10000000.0;
+double ki = 0.0;
+double kd = 1.0;
 // ----- Moving Average Filter -----
-const int MA_WINDOW_SIZE = 40;  // number of samples to average (adjust as needed: 3-10 typical)
+const int MA_WINDOW_SIZE = 10;  // number of samples to average (adjust as needed: 3-10 typical)
 double left_velocity_history[MA_WINDOW_SIZE];   // circular buffer for left velocity
 double right_velocity_history[MA_WINDOW_SIZE];  // circular buffer for right velocity
 int ma_index = 0;              // current index in circular buffer
@@ -166,7 +165,7 @@ void loop() {
   static long beginning = 0;
   if (beginning == 0) beginning = millis();
   else {
-    if ((((millis() - beginning) / 5000) % 2) == 0) left_target_velocity_mm = 500;
+    if ((((millis() - beginning) / 10000) % 2) == 0) left_target_velocity_mm = 500;
     else left_target_velocity_mm = 150;
   }
 
@@ -211,4 +210,6 @@ void loop() {
   }
   setLeftMotor(left_pid_out);
   setRightMotor(right_pid_out);
+
+  delay(50);
 }
