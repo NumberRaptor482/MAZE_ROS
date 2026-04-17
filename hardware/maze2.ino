@@ -30,14 +30,19 @@ const float COUNTS_PER_OUTPUT_REV = COUNTS_PER_MOTOR_REV * GEAR_RATIO; // 1920 f
 const float WHEEL_CIRCUM_MM = 2.0f * PI * WHEEL_RADIUS_MM; // circumference of the black side wheels needed to find distance traveled
 const float MM_PER_COUNT = WHEEL_CIRCUM_MM / COUNTS_PER_OUTPUT_REV; // mm traveled of the wheel per encoder count
 // ----- Robot geometry -----
-const float ROBOT_RADIUS_MM = 122.2375f;          // center to wheel radius. Used to do point turns
+const float ROBOT_RADIUS_MM = 100.2375f;          // center to wheel radius. Used to do point turns
 const double MAX_SPEED = 2500;
 const double BASE_POWER = 30;
 const int PWM_MAX = 150; // max speed. 255 is very fast
 const int PWM_MIN  = 60; // min speed. Going below this will make the motors stall
-double kp = 10000000.0;
-double ki = 0.0;
-double kd = 1.0;
+double kp = 0.36;
+double ki = 1.3;
+double kd = 0.07;
+
+double lkp = 0.5;
+double lki = 1.3;
+double lkd = 0.07;
+
 // ----- Moving Average Filter -----
 const int MA_WINDOW_SIZE = 10;  // number of samples to average (adjust as needed: 3-10 typical)
 double left_velocity_history[MA_WINDOW_SIZE];   // circular buffer for left velocity
@@ -58,8 +63,11 @@ double right_pid_out = 0.0;
 // target velocity for the left wheel in mm/s
 double left_target_velocity_mm = 300.0;
 // targte velocity for the right wheel in mm/s
-double right_target_velocity_mm = 0.0;
-PID  leftPID(&left_current_velocity_mm,  &left_pid_out,  &left_target_velocity_mm,  kp, ki, kd, DIRECT);
+double right_target_velocity_mm = 300.0;
+
+double distance_traveled = 0;
+
+PID  leftPID(&left_current_velocity_mm,  &left_pid_out,  &left_target_velocity_mm,  lkp, lki, lkd, DIRECT);
 PID rightPID(&right_current_velocity_mm, &right_pid_out, &right_target_velocity_mm, kp, ki, kd, DIRECT);
 
 // ----- Moving Average Function -----
@@ -158,17 +166,69 @@ void setup() {
   initMovingAverage();  // Initialize moving average buffers
   leftPID.SetMode(AUTOMATIC);
   rightPID.SetMode(AUTOMATIC);
-  leftPID.SetOutputLimits(-150, 150);
-  rightPID.SetOutputLimits(-150, 150);
+  leftPID.SetOutputLimits(-250, 250);
+  rightPID.SetOutputLimits(-250, 250);
 }
-void loop() {
-  static long beginning = 0;
-  if (beginning == 0) beginning = millis();
-  else {
-    if ((((millis() - beginning) / 10000) % 2) == 0) left_target_velocity_mm = 500;
-    else left_target_velocity_mm = 150;
+
+
+const int STRAIGHT = 0;
+const int STOP_STRAIGHT = 1;
+const int TURN = 2;
+const int STOP_TURN = 3;
+const int END = 4;
+
+int state = STRAIGHT;
+
+long int last_time = 0;
+int iterations = 0;
+void square_state_machine() {
+
+  if (last_time == 0) {
+    last_time = millis();
+    return;
+  }
+  long int delta = millis() - last_time;
+  last_time = millis();
+
+  distance_traveled += left_current_velocity_mm * delta / 1000.0;
+
+  if (state == STRAIGHT && distance_traveled >= 500) {
+    state = STOP_STRAIGHT;
+  }
+  else if (state == STOP_STRAIGHT && left_current_velocity_mm == 0 && right_current_velocity_mm == 0) {
+    state = TURN;
+    distance_traveled = 0;
+  }
+  else if (state == TURN && distance_traveled >= 120) {
+    state = STOP_TURN;
+  }
+  else if (state == STOP_TURN && left_current_velocity_mm == 0 && right_current_velocity_mm == 0) {
+    if (iterations >= 3) {
+      state = END;
+      distance_traveled = 0;
+    } else {
+      iterations++;
+      state = STRAIGHT;
+      distance_traveled = 0;
+    }
   }
 
+
+  if (state == STRAIGHT) {
+    left_target_velocity_mm = 150;
+    right_target_velocity_mm = 150;
+  }
+  else if (state == STOP_STRAIGHT || state == STOP_TURN || state == END) {
+    left_target_velocity_mm = 0;
+    right_target_velocity_mm = 0;
+  }
+  else if (state == TURN) {
+    left_target_velocity_mm = 150;
+    right_target_velocity_mm = -150;
+  }
+}
+
+void loop() {
   // first update velocity
   static unsigned long last_update = 0;
   static long last_left_count = 0;
@@ -211,5 +271,6 @@ void loop() {
   setLeftMotor(left_pid_out);
   setRightMotor(right_pid_out);
 
+  square_state_machine();
   delay(50);
 }
