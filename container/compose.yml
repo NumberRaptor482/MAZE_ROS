@@ -1,0 +1,45 @@
+services:
+  ros_rad_x86:
+    container_name: ros_rad_x86
+    privileged: true
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ..
+        target: /home/ros/ws
+    command: ["/bin/bash", "/home/ros/ws/container/entrypoint.bash"]
+    environment:
+      - ROS_DOMAIN_ID=0
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/ros/ws/container/no_shm.xml
+    build:
+      context: .
+      args:
+        USERNAME: ros
+      platforms:
+        - "linux/amd64"
+    image: ros_rad_x86:latest
+  ros_rad_arm:
+    container_name: ros_rad_arm
+    privileged: true
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ..
+        target: /home/ros/ws
+    command: ["/bin/bash", "/home/ros/ws/container/entrypoint.bash"]
+    environment:
+      - ROS_DOMAIN_ID=0
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/ros/ws/no_shm.xml
+    build:
+      context: .
+      args:
+        USERNAME: ros
+      platforms:
+        - "linux/arm64"
+    image: ros_rad_arm:latest
