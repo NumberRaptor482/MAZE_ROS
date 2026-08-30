@@ -1,0 +1,8 @@
+digraph G {
+"vehicle_blue/odom" -> "vehicle_blue/chassis"[label=" Broadcaster: default_authority\nAverage rate: 50.2\nBuffer length: 5.0\nMost recent transform: 379.74\nOldest transform: 374.74\n"];
+"vehicle_blue/chassis" -> "vehicle_blue/lidar_link/gpu_lidar"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1774219167.6732512"[ shape=plaintext ] ;
+}->"vehicle_blue/odom";
+}

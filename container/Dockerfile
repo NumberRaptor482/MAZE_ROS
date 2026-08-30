@@ -1,4 +1,4 @@
-FROM ros:humble-ros-base
+FROM ros:jazzy-ros-base
 
 # Only modify args here if absolutely necessary
 ARG USERNAME=ros
@@ -13,7 +13,10 @@ ENV TERM xterm-256color
 # Install additional system packages
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y sudo tree tmux nano iputils-ping iperf3  ros-humble-foxglove-bridge
+    && apt-get install -y sudo tree tmux nano iputils-ping iperf3  ros-jazzy-foxglove-bridge
+
+# Delete pre-existing user occupying the target UID (Ubuntu Noble ships a default "ubuntu" user at 1000)
+RUN if id -u $USER_UID >/dev/null 2>&1; then userdel -r $(id -un $USER_UID); fi
 
 # Create the user
 RUN groupadd --gid $USER_GID $USERNAME \
@@ -28,7 +31,7 @@ RUN usermod -aG dialout $USERNAME
 RUN rm -rf /etc/ros/rosdep/sources.list.d/20-default.list && rosdep init 
 
 # Add ROS2 install to .bashrc
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
+RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc
 RUN echo "source /home/$USERNAME/ws/install/local_setup.bash" >> /home/$USERNAME/.bashrc
 
 # Update default user
