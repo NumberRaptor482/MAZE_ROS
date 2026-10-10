@@ -443,7 +443,7 @@ run() {
         log RUN $CY "Stopping existing local containers"
         $DOCKER_CMD compose $STOP_MODE
         log RUN $CY "Starting local container"
-        $DOCKER_CMD compose up -d --scale $opp_loc_tgt=0 # starts everything EXCEPT the other target
+        $DOCKER_CMD compose up -d $loc_tgt_srv # starts everything EXCEPT the other target
         cmdval $? RUN $CY 1 "Local container start"
     else
         # Run the remote container
