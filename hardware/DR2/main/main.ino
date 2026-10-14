@@ -25,6 +25,7 @@ double epsilon = 1e-6;
 
 void setup() {
     Serial.begin(38400);
+    while (!Serial);
 
     pinMode(status_led_pin, output);
 }
@@ -32,7 +33,11 @@ void setup() {
 void loop() {
     if(Serial.available() > sizeof(CMD_VEL)) {
         analogWrite(status_led_pin, status_led_received);
-        memcpy(latest_command_velocity, &Serial.readBytes(sizeof(CMD_VEL)), sizeof(CMD_VEL))
+        char *buff[sizeof(CMD_VEl)];
+        Serial.readBytes(buff, sizeof(CMD_VEL));
+        if(buff) {
+            memcpy(&latest_command_velocity, buff, sizeof(CMD_VEL));
+        }
     }
 
     if(std::abs(test_desired_linear_x - latest_command_velocity.linear_x) < epsilon) {
