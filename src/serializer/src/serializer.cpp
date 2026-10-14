@@ -101,5 +101,4 @@ int main() {
     memcpy(serialized_velocity, &velocity, sizeof(velocity));
 
     write_serial_port(fd, serialized_velocity, sizeof(velocity));
-
 }
