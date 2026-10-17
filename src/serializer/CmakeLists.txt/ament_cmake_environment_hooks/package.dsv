@@ -1,0 +1,4 @@
+source;share/serializer/local_setup.bash
+source;share/serializer/local_setup.dsv
+source;share/serializer/local_setup.sh
+source;share/serializer/local_setup.zsh

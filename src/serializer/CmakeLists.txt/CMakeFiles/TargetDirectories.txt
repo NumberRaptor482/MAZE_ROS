@@ -1,0 +1,10 @@
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/uninstall.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/serializer_uninstall.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/serializer.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/test.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/edit_cache.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/rebuild_cache.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/list_install_components.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/install.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/install/local.dir
+/home/ros/ws/src/serializer/CmakeLists.txt/CMakeFiles/install/strip.dir
