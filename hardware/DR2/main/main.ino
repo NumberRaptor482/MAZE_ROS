@@ -1,5 +1,5 @@
 #include <string.h>
-#include <cmath>
+// #include <cmath>
 
 struct CMD_VEL {
     float linear_x;
@@ -10,10 +10,10 @@ struct CMD_VEL {
     float roll;
 };
 
-struct CMD_VEL latest_command_velocity = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+CMD_VEL latest_command_velocity = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
 // TODO: Get actual LED pin
-int status_led_pin = -1;
+int status_led_pin = LED_BUILTIN;
 int status_led_properly_received = 255;
 int status_led_received = 128;
 int status_led_off = 0;
@@ -27,20 +27,19 @@ void setup() {
     Serial.begin(38400);
     while (!Serial);
 
-    pinMode(status_led_pin, output);
+    pinMode(status_led_pin, OUTPUT);
+    digitalWrite(status_led_pin, LOW);
 }
 
 void loop() {
     if(Serial.available() > sizeof(CMD_VEL)) {
-        analogWrite(status_led_pin, status_led_received);
-        char *buff[sizeof(CMD_VEl)];
+        // digitalWrite(status_led_pin, HIGH);
+        char buff[sizeof(CMD_VEL)];
         Serial.readBytes(buff, sizeof(CMD_VEL));
-        if(buff) {
-            memcpy(&latest_command_velocity, buff, sizeof(CMD_VEL));
-        }
-    }
+        memcpy(&latest_command_velocity, buff, sizeof(CMD_VEL));
+        Serial.write(buff, sizeof(CMD_VEL));
 
-    if(std::abs(test_desired_linear_x - latest_command_velocity.linear_x) < epsilon) {
-        analogWrite(status_led_pin, status_led_properly_received);
+    } else {
+        digitalWrite(status_led_pin, LOW);
     }
 }

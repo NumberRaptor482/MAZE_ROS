@@ -7,7 +7,7 @@
 #include <cstdio>
 // #include <iostream>
 
-#define PORT_NAME "dev/tty0"
+#define PORT_NAME "/dev/ttyACM0"
 
 static int open_serializer_port(const char* devicePathName) {
     int fd = open(devicePathName, O_RDWR | O_NOCTTY | O_SYNC);
@@ -51,8 +51,8 @@ static int configure_serial_port(int fd) {
     comm_config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
     // 6. Timeout / Blocking Rules (c_cc)
-    comm_config.c_cc[VMIN]  = 1;             // Read blocks until at least 1 byte arrives
-    comm_config.c_cc[VTIME] = 0;             // No read timeout
+    comm_config.c_cc[VMIN]  = 0;             // Read blocks until at least 1 byte arrives
+    comm_config.c_cc[VTIME] = 10;             // No read timeout
 
     // Apply the settings immediately
     if (tcsetattr(fd, TCSANOW, &comm_config) != 0) {
@@ -66,12 +66,12 @@ static int configure_serial_port(int fd) {
 
 }
 
-static void read_serial_port(int fd, void *buf, size_t count) {
-    read(fd, buf, count);
+static int read_serial_port(int fd, void *buf, size_t count) {
+    return read(fd, buf, count);
 }
 
-static void write_serial_port(int fd, void *buf, size_t count) {
-    write(fd, buf, count);
+static int write_serial_port(int fd, void *buf, size_t count) {
+    return write(fd, buf, count);
 }
 
 struct CMD_VEL {
@@ -87,7 +87,7 @@ int main(int argc, char ** argv) {
     (void) argc;
     (void) argv;
 
-    printf("%s", "Hello World");
+    printf("%s", "Hello World\n");
 
     int fd = open_serializer_port(PORT_NAME);
     if (fd < 0) {
@@ -100,11 +100,31 @@ int main(int argc, char ** argv) {
     }
 
     struct CMD_VEL velocity = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    struct CMD_VEL received_velocity = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
-    char *serialized_velocity[sizeof(struct CMD_VEL)];
-    memcpy(serialized_velocity, &velocity, sizeof(velocity));
+    for(int i = 0; i < 100; i++) {
+        printf("%d: ", i);
+    	char *serialized_velocity[sizeof(struct CMD_VEL)];
+    	memcpy(serialized_velocity, &velocity, sizeof(velocity));
+    	int w_success = write_serial_port(fd, serialized_velocity, sizeof(velocity));
+        if(w_success < 0) {
+            printf("%s", "Write failed!\n");
+        } else {
+            printf("%s", "Write Succeeded!\n");
+        }
 
-    write_serial_port(fd, serialized_velocity, sizeof(velocity));
+	    char *received_serialized_velocity[sizeof(struct CMD_VEL)];
+	    int r_success = read_serial_port(fd, received_serialized_velocity, sizeof(received_velocity));
+        if(r_success < 0) {
+            printf("%s", "Read failed!\n");
+        } else {
+            printf("%s", "Read Succeeded!\n");
+            memcpy(received_serialized_velocity, &received_velocity, sizeof(received_velocity));
+	        printf("%f\n", received_velocity.linear_x);
+        }
+
+        printf("%s", "\n");
+    }
 
     return 0;
 }
