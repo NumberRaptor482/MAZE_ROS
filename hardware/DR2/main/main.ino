@@ -10,21 +10,15 @@ struct CMD_VEL {
     float roll;
 };
 
+static unsigned char buff[sizeof(struct CMD_VEL)];
+
 CMD_VEL latest_command_velocity = {10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f};
 
 // TODO: Get actual LED pin
 int status_led_pin = LED_BUILTIN;
-int status_led_properly_received = 255;
-int status_led_received = 128;
-int status_led_off = 0;
-
-// Temporary variable to test if serial data connection is working!
-float test_desired_linear_x = 1.0f;
-
-double epsilon = 1e-6;
 
 void setup() {
-    Serial.begin(38400);
+    Serial.begin(9600);
     while (!Serial);
 
     pinMode(status_led_pin, OUTPUT);
@@ -32,13 +26,17 @@ void setup() {
 }
 
 void loop() {
-    if(Serial.available() > sizeof(CMD_VEL)) {
-        char buff[sizeof(CMD_VEL)];
-        Serial.readBytes(buff, sizeof(CMD_VEL));
-        memcpy(&latest_command_velocity, buff, sizeof(CMD_VEL));
-        Serial.write(buff, sizeof(CMD_VEL));
+    // memcpy(buff, &latest_command_velocity, sizeof(latest_command_velocity));
+    // Serial.write(buff, sizeof(struct CMD_VEL));
+    bool has_read = false;
 
-    } else {
-        digitalWrite(status_led_pin, LOW);
+    if(Serial.available() >= sizeof(struct CMD_VEL)) {
+        Serial.readBytes(buff, sizeof(struct CMD_VEL));
+        memcpy(&latest_command_velocity, buff, sizeof(struct CMD_VEL));
+        has_read = true;
     }
+
+    // if(has_read) {
+    Serial.write(buff, sizeof(struct CMD_VEL));
+    // }
 }

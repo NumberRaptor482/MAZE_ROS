@@ -21,7 +21,6 @@ struct CMD_VEL {
 static int open_serializer_port(const char* devicePathName) {
     int fd = open(devicePathName, O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0) {
-        // std::cerr << strerror(errno) << std::endl;
         close(fd);
         return -1;
     }
@@ -35,8 +34,8 @@ static int configure_serial_port(int fd) {
 
     // START OF AI SLOP \\
     // 1. Set Baud Rate to 38400
-    cfsetispeed(&comm_config, B38400);
-    cfsetospeed(&comm_config, B38400);
+    cfsetispeed(&comm_config, B9600);
+    cfsetospeed(&comm_config, B9600);
 
     // 2. Control Options (c_cflag)
     comm_config.c_cflag |= (CLOCAL | CREAD); // Enable receiver, ignore modem control lines
@@ -60,8 +59,8 @@ static int configure_serial_port(int fd) {
     comm_config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
     // 6. Timeout / Blocking Rules (c_cc)
-    comm_config.c_cc[VMIN]  = sizeof(struct CMD_VEL);             // Read blocks until at least 1 byte arrives
-    comm_config.c_cc[VTIME] = 100;             // No read timeout
+    comm_config.c_cc[VMIN]  = sizeof(struct CMD_VEL); // Minimum Read Size
+    comm_config.c_cc[VTIME] = 0;             // 10 Second Timeout
 
     // Apply the settings immediately
     if (tcsetattr(fd, TCSANOW, &comm_config) != 0) {
@@ -87,15 +86,13 @@ int main(int argc, char ** argv) {
     (void) argc;
     (void) argv;
 
-    printf("%s", "Hello World\n");
-
     int fd = open_serializer_port(PORT_NAME);
     if (fd < 0) {
-        printf("%s", "Device failed to open");
+        printf("%s\n", "Device failed to open");
         return 1;
     }
     if (configure_serial_port(fd) < 0) {
-        printf("%s", "Device failed to configure");
+        printf("%s\n", "Device failed to configure");
         return 1;
     }
 
@@ -103,24 +100,33 @@ int main(int argc, char ** argv) {
     struct CMD_VEL received_velocity = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
     for(int i = 0; i < 100; i++) {
-        printf("%d: ", i);
+        printf("%d: \n", i);
     	char *serialized_velocity[sizeof(struct CMD_VEL)];
-    	memcpy(serialized_velocity, &velocity, sizeof(velocity));
-    	int w_success = write_serial_port(fd, serialized_velocity, sizeof(velocity));
+    	memcpy(serialized_velocity, &velocity, sizeof(struct CMD_VEL));
+
+    	int w_success = write_serial_port(fd, serialized_velocity, sizeof(struct CMD_VEL));
         if(w_success < 0) {
-            printf("%s", "Write failed!\n");
+            printf("%s\n", "Write failed!");
         } else {
-            printf("%s", "Write Succeeded!\n");
+            printf("%s\n", "Write Succeeded!");
+            // printf("%d\n", w_success);
+            // printf("%f\n", velocity.linear_x);
         }
 
 	    char *received_serialized_velocity[sizeof(struct CMD_VEL)];
-	    int r_success = read_serial_port(fd, received_serialized_velocity, sizeof(received_velocity));
+	    int r_success = read_serial_port(fd, received_serialized_velocity, sizeof(struct CMD_VEL));
         if(r_success < 0) {
-            printf("%s", "Read failed!\n");
+            printf("%s\n", "Read failed!");
         } else {
-            printf("%s", "Read Succeeded!\n");
-            memcpy(received_serialized_velocity, &received_velocity, sizeof(received_velocity));
+            printf("%s\n", "Read Succeeded!");
+            memcpy(&received_velocity, received_serialized_velocity, sizeof(struct CMD_VEL));
+            printf("%d\n", r_success);
 	        printf("%f\n", received_velocity.linear_x);
+            printf("%f\n", received_velocity.linear_y);
+	        printf("%f\n", received_velocity.linear_z);
+	        printf("%f\n", received_velocity.yaw);
+	        printf("%f\n", received_velocity.pitch);
+	        printf("%f\n", received_velocity.roll);
         }
 
         printf("%s", "\n");
