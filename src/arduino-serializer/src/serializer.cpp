@@ -9,6 +9,15 @@
 
 #define PORT_NAME "/dev/ttyACM0"
 
+struct CMD_VEL {
+    float linear_x;
+    float linear_y;
+    float linear_z;
+    float yaw;
+    float pitch;
+    float roll;
+};
+
 static int open_serializer_port(const char* devicePathName) {
     int fd = open(devicePathName, O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0) {
@@ -51,8 +60,8 @@ static int configure_serial_port(int fd) {
     comm_config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
     // 6. Timeout / Blocking Rules (c_cc)
-    comm_config.c_cc[VMIN]  = 0;             // Read blocks until at least 1 byte arrives
-    comm_config.c_cc[VTIME] = 10;             // No read timeout
+    comm_config.c_cc[VMIN]  = sizeof(struct CMD_VEL);             // Read blocks until at least 1 byte arrives
+    comm_config.c_cc[VTIME] = 100;             // No read timeout
 
     // Apply the settings immediately
     if (tcsetattr(fd, TCSANOW, &comm_config) != 0) {
@@ -73,15 +82,6 @@ static int read_serial_port(int fd, void *buf, size_t count) {
 static int write_serial_port(int fd, void *buf, size_t count) {
     return write(fd, buf, count);
 }
-
-struct CMD_VEL {
-    float linear_x;
-    float linear_y;
-    float linear_z;
-    float yaw;
-    float pitch;
-    float roll;
-};
 
 int main(int argc, char ** argv) {
     (void) argc;
@@ -125,6 +125,8 @@ int main(int argc, char ** argv) {
 
         printf("%s", "\n");
     }
+
+    close(fd);
 
     return 0;
 }

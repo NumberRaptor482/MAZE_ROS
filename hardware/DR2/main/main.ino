@@ -10,7 +10,7 @@ struct CMD_VEL {
     float roll;
 };
 
-CMD_VEL latest_command_velocity = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+CMD_VEL latest_command_velocity = {10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f};
 
 // TODO: Get actual LED pin
 int status_led_pin = LED_BUILTIN;
@@ -33,7 +33,6 @@ void setup() {
 
 void loop() {
     if(Serial.available() > sizeof(CMD_VEL)) {
-        // digitalWrite(status_led_pin, HIGH);
         char buff[sizeof(CMD_VEL)];
         Serial.readBytes(buff, sizeof(CMD_VEL));
         memcpy(&latest_command_velocity, buff, sizeof(CMD_VEL));
