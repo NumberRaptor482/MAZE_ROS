@@ -193,7 +193,7 @@ class WallFinder(Node):
 
 
     def find_corners(self, grid):
-        """Tries to determine which sections of the maze are horizontal or vertical walls.
+        """Tries to determine which sections of the maze are horizontal or vertical walls. IMPORTANT: DOES NOT FIND CORNERS.
         
         Args:
             grid: occupancy grid.
