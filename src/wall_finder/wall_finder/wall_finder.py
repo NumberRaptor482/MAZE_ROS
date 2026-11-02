@@ -7,24 +7,57 @@ from geometry_msgs.msg import PoseStamped
 import geometry_msgs.msg
 
 def check_grid(grid, x, y):
-    """returns true if this pixel is a wall and false otherwise"""
+    """returns true if this pixel is a wall and false otherwise
+    
+    Args:
+        grid: An ROS occupancy grid.
+        x: The x-coordinate to be checked.
+        y: The y-coordinate to be checked.
+
+    Returns: True if the position is a valid point on the maze and the cells occupancy value is greater than 50 and the value is not 101.
+        
+    """
     if x >= 0 and x < grid.info.width and y >= 0 and y < grid.info.height and grid.data[x + y * grid.info.width] > 50 and grid.data[x + y * grid.info.width] != 101: return True
     return False
 
 
 def yaw_from_quat(q):
+    """Calculates the yaw (rotation around the z-axis) from a quaternion.
+
+    Args:
+        q: The quaternion representing the orientation.
+
+    Returns:
+        The orientation in radians.
+    """
     # geometry_msgs/Quaternion -> yaw (rad)
     siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
     cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
     return atan2(siny_cosp, cosy_cosp)
 
 class Pose:
+    """A 3D coordinate representation for the robot's pose.
+
+    Args:
+        x: The x-coordinate of the pose.
+        y: The y-coordinate of the pose.
+        theta: The orientation of the pose.
+    """
     def __init__(self, x, y, theta):
         self.x = x
         self.y = y
         self.theta = theta
 
 class WallFinder(Node):
+    """A ROS2 node that finds maze walls.
+
+    Attributes:
+        sub: subscriber for raw map data.
+        pub: publisher for processed map with maze walls.
+        robot_pub: subscriber for the robot pose(position and orientation).
+        robot_pose: stored robot pose.
+        visited_nodes: a set of all nodes the robot has already visited.
+    """
     def __init__(self):
         super().__init__('wallfinder')
         self.sub = self.create_subscription(
@@ -46,9 +79,23 @@ class WallFinder(Node):
 
     @staticmethod
     def to_node_coords(x, y):
+        """converts raw x and y coordinates to node coordinates.
+
+        Args:
+            x: raw x-coordinate.
+            y: raw y-coordinate.
+
+        Returns:
+            a tuple of the x node coordinate and y node coordinate.
+        """
         return int(x + 1.5), int(-y + 1.5)
 
     def position_updater(self, pose):
+        """Updates robot_pose and adds the current node position to visited_nodes.
+
+        Args:
+            pose: The current pose of the robot.
+        """
         x = pose.pose.position.x
         y = pose.pose.position.y
 
@@ -60,6 +107,16 @@ class WallFinder(Node):
 
 
     def whats_in_this_spot(self, grid, x, y):#, output_image):
+        """Checks an aread of neighbors around a location and gets a numerical representation of what is in a grid spot.
+
+        Args:
+            grid: occupancy grid.
+            x: raw x-coordinate.
+            y: raw y-coordinate.
+
+        Returns:
+            100 if the area is occupied, -1 if the area is unknown, and 0 if the area is open.
+        """
         all_unknown = True
         result = 0
         for dx in range(-9, 9):
@@ -78,7 +135,14 @@ class WallFinder(Node):
 
 
     def find_walls_again(self, grid):
-        """Simplified approach that assumes perfect measurements"""
+        """Converts an occupancy grid map to a smaller 11x11 grid representation
+        
+        Args:
+            grid: occupancy grid.
+
+        Returns:
+            A new occupancy grid message with the new width, height, resolution, classified maze cells, and frame.
+        """
         w = grid.info.width
         h = grid.info.height
         data = grid.data
@@ -129,6 +193,14 @@ class WallFinder(Node):
 
 
     def find_corners(self, grid):
+        """Tries to determine which sections of the maze are horizontal or vertical walls.
+        
+        Args:
+            grid: occupancy grid.
+
+        Returns:
+            A list with each element as 100 as a wall or as 0 as not a wall.
+        """
         w = grid.info.width
         h = grid.info.height
         data = grid.data
@@ -195,6 +267,11 @@ class WallFinder(Node):
         return output
 
     def cb(self, msg: OccupancyGrid):
+        """Facilitaties the occupancy grid processing and publishes the /processed topic.
+        
+        Args:
+            msg: messsage of type occupancy grid.
+        """
         w = msg.info.width
         h = msg.info.height
         res = msg.info.resolution
