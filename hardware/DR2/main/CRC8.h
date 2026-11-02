@@ -1,8 +1,15 @@
 #ifndef CRC8_H
 #define CRC8_H
 
-bool is_valid(char* data, char remainder, short crc_key);
+#include <stdint.h>
+#include <stddef.h>
 
-char remainder(char* data, short crc_key);
+int get_bit(uint8_t data_buffer[], size_t data_size, int bit_number);
+
+void xor_bit(uint8_t data_buffer[], size_t data_size, int bit_number, int bit);
+
+uint8_t remainder(uint8_t data_buffer[], size_t data_size, uint16_t crc_key);
+
+bool is_valid(uint8_t data_buffer[], size_t data_size, uint8_t remainder, uint16_t crc_key);
 
 #endif CRC8_H

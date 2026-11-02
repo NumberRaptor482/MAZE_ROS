@@ -174,40 +174,40 @@ void update_cmd_vel_from_serial() {
         }
 
         if(reading_cmd_vel) {
-            if(reading_index < sizeof(cmd_vel_buff)) {
+            if(reading_index < sizeof(struct COMMAND_VELOCITY)) {
                 cmd_vel_buff[reading_index] = current_byte;
             }
 
-            if(reading_index == sizeof(cmd_vel_buff)) {
+            if(reading_index == sizeof(struct COMMAND_VELOCITY)) {
                 crc8 = current_byte;
             }
 
             if(
-                reading_index == sizeof(cmd_vel_buff) + 1 &&
+                reading_index == sizeof(struct COMMAND_VELOCITY) + 1 &&
                 current_byte == end_marker_cmd_vel  &&
-                is_valid(cmd_vel_buff, crc8, crc8_key)) {
+                is_valid(cmd_vel_buff, sizeof(struct COMMAND_VELOCITY), crc8, crc8_key)) {
                 // Data succesfully read!
                 memcpy(&latest_command_velocity, cmd_vel_buff, sizeof(struct COMMAND_VELOCITY));
                 reading_cmd_vel = false;
                 reading_index = 0;
-                memset(cmd_vel_buff, 0, sizeof(cmd_vel_buff));
+                memset(cmd_vel_buff, 0, sizeof(struct COMMAND_VELOCITY));
                 crc8 = 0;
                 continue;
-            } else if(reading_index == sizeof(cmd_vel_buff) + 1) {
+            } else if(reading_index == sizeof(struct COMMAND_VELOCITY) + 1) {
                 // Corruption case
                 reading_cmd_vel = false;
                 reading_index = 0;
-                memset(cmd_vel_buff, 0, sizeof(cmd_vel_buff));
+                memset(cmd_vel_buff, 0, sizeof(struct COMMAND_VELOCITY));
                 crc8 = 0;
                 continue;
             }
 
             // If life gives you lemons, make lemonade!
-            if(reading_index > sizeof(cmd_vel_buff) + 1) {
+            if(reading_index > sizeof(struct COMMAND_VELOCITY) + 1) {
                 // Corruption case
                 reading_cmd_vel = false;
                 reading_index = 0;
-                memset(cmd_vel_buff, 0, sizeof(cmd_vel_buff));
+                memset(cmd_vel_buff, 0, sizeof(struct COMMAND_VELOCITY));
                 crc8 = 0;
                 continue;
             }
