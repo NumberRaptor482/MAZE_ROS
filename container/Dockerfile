@@ -13,7 +13,21 @@ ENV TERM xterm-256color
 # Install additional system packages
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y sudo tree tmux nano iputils-ping iperf3  ros-jazzy-foxglove-bridge
+    && apt-get install -y sudo tree tmux nano iputils-ping iperf3  ros-jazzy-foxglove-bridge \
+    ros-jazzy-gz-transport-vendor \
+    ros-jazzy-ros-gz-bridge \
+    # potentially remove if bulky
+    ros-jazzy-ros-gz \
+    libxcb-xinerama0 \
+    libx11-xcb1 \
+    libglu1-mesa-dev \
+    ros-jazzy-cartographer-ros \
+    libxcb-shm0 \
+    libxcb-render0-dev \
+    libxcb-shape0-dev \
+    libxcb-xfixes0-dev \
+    ros-jazzy-topic-tools \
+    && rm -rf /var/lib/apt/lists/*
 
 # Delete pre-existing user occupying the target UID (Ubuntu Noble ships a default "ubuntu" user at 1000)
 RUN if id -u $USER_UID >/dev/null 2>&1; then userdel -r $(id -un $USER_UID); fi

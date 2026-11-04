@@ -1,7 +1,7 @@
-{16:24:30}{CMD} Container initialization complete
-{16:24:30}{CMD} Awaiting command
-{16:24:30}{CMD} Resuming previous command:\033[90m echo "Hello, world!"
+{13:22:16}{CMD} Container initialization complete
+{13:22:16}{CMD} Awaiting command
+{13:22:16}{CMD} Resuming previous command:\033[90m echo "Hello, world!"
 "Hello, world!"
-{16:24:30}{CMD} Command running with PID:\033[90m 21
-{16:24:30}{CMD} Robot command self terminated
-{16:24:30}{CMD} Update command or restart container to resume
+{13:22:16}{CMD} Command running with PID:\033[90m 24
+{13:22:16}{CMD} Robot command self terminated
+{13:22:16}{CMD} Update command or restart container to resume
