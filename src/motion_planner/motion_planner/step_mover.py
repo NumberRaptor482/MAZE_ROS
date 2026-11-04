@@ -19,16 +19,32 @@ TURN = 1
 STRAIGHT = 2
 
 class SimplePose:
+    """A 3D coordinate representation for the robot's pose.
+
+    Args:
+        x: The x-coordinate of the pose represented as a float.
+        y: The y-coordinate of the pose represented as a float.
+        theta: The orientation of the pose in radians represented as a float.
+    """
     def __init__(self, x: float, y: float, theta: float):
         self.x = x
         self.y = y
         self.theta = theta
 
     def __str__(self):
+        """Returns a string representation of the pose."""
         return f'({self.x}, {self.y}, {self.theta})'
 
 
 def yaw_from_quat(q):
+    """Calculates the yaw (rotation around the z-axis) from a quaternion.
+
+    Args:
+        q: The quaternion representing the orientation.
+
+    Returns:
+        The orientation in radians.
+    """
     # geometry_msgs/Quaternion -> yaw (rad)
     siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
     cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
@@ -36,10 +52,31 @@ def yaw_from_quat(q):
 
 
 def wrap_pi(a):
+    """Normalizes an angle to the range [-pi, pi].
+
+    Args:
+        a: The angle in radians.
+
+    Returns:
+        The normalized angle in radians.
+    """
     return (a + math.pi) % (2.0 * math.pi) - math.pi
 
 
 class StepMover(Node):
+    """A ROS2 node that controls the movement of a robot based on step commands and pose data.
+
+    Attributes:
+        vel_publisher: Publisher for velocity commands.
+        cmd: The current command to be sent to the robot.
+        steps_sub: Subscriber for step commands.
+        pose_sub: Subscriber for pose data.
+        timer: Timer that calls the update_motion method at a regular interval.
+        motion_queue: Queue of motion Steps to be executed.
+        current_pose: The current pose of the robot.
+        target_pose: The target pose of the robot.
+        state: The current state of the motion planner.
+    """
     def __init__(self):
         super().__init__('step_mover_motion_planner')
         self.get_logger().info('Starting step_mover motion planner')
@@ -73,9 +110,15 @@ class StepMover(Node):
         self.state = True
 
     def stop(self):
+        """Stops the stepmover's movement(linear and angular)."""
         self.vel_publisher.publish(Twist())
 
     def step_command_received(self, step: Step):
+        """Handles the reception of a step command and updates the motion queue.
+
+        Args:
+            step: The step command to be processed.
+        """
         self.get_logger().info(f"Received step: xstep={step.xstep}, ystep={step.ystep}")
         if abs(self.xstep) > 0 and abs(self.ystep) > 0:
             self.get_logger().info("Invalid step. Must be either x direction or y direction, not both")
@@ -83,12 +126,22 @@ class StepMover(Node):
             self.motion_queue.append(step)
 
     def tracked_pose(self, pose: PoseStamped):
+        """Reads the robots actual pose and orientation from ROS 2 and saves it in current_pose.
+
+        Args:
+            pose: PoseStamped message from the /tracked_pose topic that contains the robot's position and orientation.
+        """
         x = pose.pose.position.x + BOX_SIZE / 2
         y = pose.pose.position.y + BOX_SIZE / 2
         theta = yaw_from_quat(pose.pose.orientation)
         self.current_pose = SimplePose(x, y, theta)
 
     def round_pose(self, raw_pose):
+        """Rounds the robot's actual pose and orientation to the nearest grid cell.
+
+        Args:
+            raw_pose: The raw pose to be rounded.
+        """
         x = int(raw_pose.x / BOX_SIZE) * BOX_SIZE + BOX_SIZE / 2
         y = int(raw_pose.y / BOX_SIZE) * BOX_SIZE + BOX_SIZE / 2
         theta = radians(int((degrees(raw_pose.theta) + 45.0) / 90.0) * 90.0)
@@ -96,6 +149,7 @@ class StepMover(Node):
 
 
     def update_motion(self):
+        """Updates the motion state of the robot based on the current and target poses, and gets the next motion command from the queue if necessary and the queue is not empty."""
         if self.current_pose is None: return
         if self.target_pose is None:
             if len(self.motion_queue) == 0: return
