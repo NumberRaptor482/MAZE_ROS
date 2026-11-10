@@ -149,7 +149,7 @@ void control_from_command_velocity(COMMAND_VELOCITY command_velocity) {
 //////////////////// READING INPUT COMMAND ////////////////
 static const char start_marker_cmd_vel = 0x7F;
 static const char end_marker_cmd_vel = 0xFF;
-static const short crc8_key = 0x07;
+static const short crc8_key = 0x12F;
 
 static bool reading_cmd_vel = false;
 static int reading_index = 0;
