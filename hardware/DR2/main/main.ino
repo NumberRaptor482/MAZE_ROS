@@ -78,7 +78,6 @@ void wheelSpeedRightUpdate() {
 }
 
 float get_right_motor_speed_mps() {
-    // TODO: ADD ENCODER CODE
     return wheelSpeedRightRadiansPS;
 }
 
@@ -147,10 +146,11 @@ void control_from_command_velocity(COMMAND_VELOCITY command_velocity) {
 }
 
 //////////////////// READING INPUT COMMAND ////////////////
-static const char start_marker_cmd_vel = 0x7F;
-static const char end_marker_cmd_vel = 0xFF;
+static const char start_marker1_cmd_vel = 0xAA;
+static const char start_marker2_cmd_vel = 0x55;
 static const short crc8_key = 0x12F;
 
+static bool reading_second_marker = false;
 static bool reading_cmd_vel = false;
 static int reading_index = 0;
 
@@ -167,8 +167,16 @@ void update_cmd_vel_from_serial() {
         Serial.readBytes(&current_byte, sizeof(current_byte));
 
         // Starts data reading
-        if(!reading_cmd_vel && current_byte == start_marker_cmd_vel) {
+        if(!reading_second_marker && !reading_cmd_vel && current_byte == start_marker1_cmd_vel) {
+            reading_cmd_vel = false;
+            reading_second_marker = true;
+            reading_index = 0;
+            continue;
+        }
+
+        if(reading_second_marker && !reading_cmd_vel && current_byte == start_marker2_cmd_vel) {
             reading_cmd_vel = true;
+            reading_second_marker = false;
             reading_index = 0;
             continue;
         }
@@ -176,35 +184,31 @@ void update_cmd_vel_from_serial() {
         if(reading_cmd_vel) {
             if(reading_index < sizeof(struct COMMAND_VELOCITY)) {
                 cmd_vel_buff[reading_index] = current_byte;
-            }
-
-            if(reading_index == sizeof(struct COMMAND_VELOCITY)) {
+            } else if(reading_index == sizeof(struct COMMAND_VELOCITY)) {
                 crc8 = current_byte;
-            }
-
-            if(
-                reading_index == sizeof(struct COMMAND_VELOCITY) + 1 &&
-                current_byte == end_marker_cmd_vel  &&
-                is_valid(cmd_vel_buff, sizeof(struct COMMAND_VELOCITY), crc8, crc8_key)) {
-                // Data succesfully read!
-                memcpy(&latest_command_velocity, cmd_vel_buff, sizeof(struct COMMAND_VELOCITY));
-                reading_cmd_vel = false;
-                reading_index = 0;
-                memset(cmd_vel_buff, 0, sizeof(struct COMMAND_VELOCITY));
-                crc8 = 0;
-                continue;
-            } else if(reading_index == sizeof(struct COMMAND_VELOCITY) + 1) {
-                // Corruption case
-                reading_cmd_vel = false;
-                reading_index = 0;
-                memset(cmd_vel_buff, 0, sizeof(struct COMMAND_VELOCITY));
-                crc8 = 0;
-                continue;
-            }
-
-            // If life gives you lemons, make lemonade!
-            if(reading_index > sizeof(struct COMMAND_VELOCITY) + 1) {
-                // Corruption case
+                if ( is_valid(cmd_vel_buff, sizeof(struct COMMAND_VELOCITY), crc8, crc8_key)) {
+                    memcpy(
+                        &latest_command_velocity, 
+                        cmd_vel_buff, 
+                        sizeof(struct COMMAND_VELOCITY));
+                    reading_second_marker = false;
+                    reading_cmd_vel = false;
+                    reading_index = 0;
+                    memset(
+                        cmd_vel_buff, 
+                        0, 
+                        sizeof(struct COMMAND_VELOCITY));
+                    crc8 = 0;
+                } else {
+                    reading_second_marker = false;
+                    reading_cmd_vel = false;
+                    reading_index = 0;
+                    memset(cmd_vel_buff, 0, sizeof(struct COMMAND_VELOCITY));
+                    crc8 = 0;
+                    continue;
+                }
+            } else {
+                reading_second_marker = false;
                 reading_cmd_vel = false;
                 reading_index = 0;
                 memset(cmd_vel_buff, 0, sizeof(struct COMMAND_VELOCITY));
@@ -227,15 +231,15 @@ void setup() {
     pinMode(status_led_pin, OUTPUT);
     digitalWrite(status_led_pin, LOW);
 
-    encoderInitLeft();
-    encoderInitRight();
-    init_motors();
+    // encoderInitLeft();
+    // encoderInitRight();
+    // init_motors();
 }
 
 void loop() {
     update_cmd_vel_from_serial();
-    control_from_command_velocity(latest_command_velocity);
+    // control_from_command_velocity(latest_command_velocity);
 
-    delay(1000 / system_frequency_hz);
+    // delay(1000 / system_frequency_hz);
 }
 
