@@ -5,6 +5,8 @@
 #include <termios.h>
 #include <unistd.h>
 #include <cstdio>
+#include <stdint.h>
+#include <stddef.h>
 // #include <iostream>
 
 #define PORT_NAME "/dev/ttyACM0"
@@ -13,6 +15,52 @@ struct COMMAND_VELOCITY {
     float linear_x;
     float yaw;
 };
+
+
+int get_bit(uint8_t data_buffer[], int bit_number) {
+    int byte_number = ((int) bit_number / 8.0);
+    int bit_offset = 7 - (bit_number % 8);
+    return (data_buffer[byte_number] >> bit_offset) & 1;
+}
+
+void xor_bit(uint8_t data_buffer[], int bit_number, int bit) {
+    int byte_number = (int) bit_number / 8.0;
+    int bit_offset = 7 - (bit_number % 8);
+    uint8_t subtrahend = bit << bit_offset;
+    data_buffer[byte_number] ^= subtrahend;
+}
+
+uint8_t remainder(uint8_t data_buffer[], size_t data_size, uint16_t crc_key) {
+    uint8_t data_polynomial[data_size + 1];
+    memcpy(data_polynomial, data_buffer, data_size);
+    memset(data_polynomial + data_size, 0, 1);
+    int data_bits = sizeof(data_polynomial) * 8;
+
+    for( int i = 0; i < data_bits - 8; i++ ) {
+        if(get_bit(data_polynomial, i) == 1) {
+            // printf("%d: \n", i);
+            // printf("[");
+            // for(int k = 0; k < sizeof(data_polynomial); k++) {
+            //     printf("%d, ", data_polynomial[k]);
+            // }
+            // printf("]\n");
+            for(int j = 8; j >= 0; j--) {
+                xor_bit(data_polynomial, i + (8 - j), (crc_key >> j) & 1);
+            }
+            // printf("[");
+            // for(int k = 0; k < sizeof(data_polynomial); k++) {
+            //     printf("%d, ", data_polynomial[k]);
+            // }
+            // printf("]\n");
+        }
+    }
+
+    return data_polynomial[data_size];
+}
+
+bool is_valid(uint8_t data_buffer[], size_t data_size, uint8_t crc, uint16_t crc_key) {
+    return remainder(data_buffer, data_size, crc_key) == crc;
+}
 
 static int open_serializer_port(const char* devicePathName) {
     int fd = open(devicePathName, O_RDWR | O_NOCTTY | O_SYNC);
@@ -55,8 +103,8 @@ static int configure_serial_port(int fd) {
     comm_config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
     // 6. Timeout / Blocking Rules (c_cc)
-    comm_config.c_cc[VMIN]  = sizeof(struct COMMAND_VELOCITY); // Minimum Read Size
-    comm_config.c_cc[VTIME] = 0;             // 10 Second Timeout
+    comm_config.c_cc[VMIN]  = 1; // Minimum Read Size
+    comm_config.c_cc[VTIME] = 10;             // 10 Second Timeout
 
     // Apply the settings immediately
     if (tcsetattr(fd, TCSANOW, &comm_config) != 0) {
@@ -82,6 +130,10 @@ int main(int argc, char ** argv) {
     (void) argc;
     (void) argv;
 
+    uint8_t start_marker1_cmd_vel = 0xAA;
+    uint8_t start_marker2_cmd_vel = 0x55;
+    uint16_t crc8_key = 0x12F;
+
     int fd = open_serializer_port(PORT_NAME);
     if (fd < 0) {
         printf("%s\n", "Device failed to open");
@@ -97,10 +149,16 @@ int main(int argc, char ** argv) {
 
     for(int i = 0; i < 100; i++) {
         printf("%d: \n", i);
-    	char *serialized_velocity[sizeof(struct COMMAND_VELOCITY)];
-    	memcpy(serialized_velocity, &velocity, sizeof(struct COMMAND_VELOCITY));
+    	uint8_t serialized_velocity[sizeof(struct COMMAND_VELOCITY)];
+    	memcpy(&serialized_velocity, &velocity, sizeof(struct COMMAND_VELOCITY));
+        
+        uint8_t crc_checksum = remainder(serialized_velocity, sizeof(serialized_velocity), crc8_key);        
+        printf("%d: \n", i);
 
-    	int w_success = write_serial_port(fd, serialized_velocity, sizeof(struct COMMAND_VELOCITY));
+        write_serial_port(fd, &start_marker1_cmd_vel, sizeof(uint8_t));
+        write_serial_port(fd, &start_marker2_cmd_vel, sizeof(uint8_t));
+    	int w_success = write_serial_port(fd, &serialized_velocity, sizeof(struct COMMAND_VELOCITY));
+        write_serial_port(fd, &crc_checksum, sizeof(uint8_t));
         if(w_success < 0) {
             printf("%s\n", "Write failed!");
         } else {
@@ -110,7 +168,7 @@ int main(int argc, char ** argv) {
         }
 
 	    char *received_serialized_velocity[sizeof(struct COMMAND_VELOCITY)];
-	    int r_success = read_serial_port(fd, received_serialized_velocity, sizeof(struct COMMAND_VELOCITY));
+	    int r_success = read_serial_port(fd, received_serialized_velocity, 1);
         if(r_success < 0) {
             printf("%s\n", "Read failed!");
         } else {

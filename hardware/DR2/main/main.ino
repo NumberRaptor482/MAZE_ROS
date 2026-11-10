@@ -9,6 +9,9 @@ struct COMMAND_VELOCITY {
     float yaw_radiansps;
 };
 
+// LED
+int status_led_pin = LED_BUILTIN;
+
 //////////////////// READING ENCODER DATA(Needs to be abstracted) ////////////////
 int system_frequency_hz = 50;
 float wheel_radius_m = 0.1;
@@ -171,6 +174,7 @@ void update_cmd_vel_from_serial() {
             reading_cmd_vel = false;
             reading_second_marker = true;
             reading_index = 0;
+            // digitalWrite(status_led_pin, HIGH);
             continue;
         }
 
@@ -199,6 +203,7 @@ void update_cmd_vel_from_serial() {
                         0, 
                         sizeof(struct COMMAND_VELOCITY));
                     crc8 = 0;
+                    Serial.write(cmd_vel_buff, sizeof(struct COMMAND_VELOCITY));
                 } else {
                     reading_second_marker = false;
                     reading_cmd_vel = false;
@@ -221,23 +226,20 @@ void update_cmd_vel_from_serial() {
     }
 }
 
-// TODO: Get actual LED pin
-int status_led_pin = LED_BUILTIN;
-
 void setup() {
-    Serial.begin(9600);
-    while (!Serial);
-
-    pinMode(status_led_pin, OUTPUT);
-    digitalWrite(status_led_pin, LOW);
+    // Serial.begin(9600);
+    // while (!Serial);
 
     // encoderInitLeft();
     // encoderInitRight();
     // init_motors();
+
+    
 }
 
 void loop() {
-    update_cmd_vel_from_serial();
+    // Serial.write(cmd_vel_buff, sizeof(struct COMMAND_VELOCITY));
+    // update_cmd_vel_from_serial();
     // control_from_command_velocity(latest_command_velocity);
 
     // delay(1000 / system_frequency_hz);
