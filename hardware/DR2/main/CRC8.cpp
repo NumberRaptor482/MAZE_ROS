@@ -46,12 +46,12 @@ bool is_valid(uint8_t data_buffer[], size_t data_size, uint8_t crc, uint16_t crc
     return remainder(data_buffer, data_size, crc_key) == crc;
 }
 
-int main(int argc, char ** argv) {
-    uint16_t crc_key = 0x12F;
+// int main(int argc, char ** argv) {
+    // uint16_t crc_key = 0x12F;
     // CRC Checksum generated should be
-    uint8_t data_buffer[] = {1, 1, 1, 1, 1};
+    // uint8_t data_buffer[] = {1, 1, 1, 1, 1};
 
     // printf("%d\n", remainder(data_buffer, sizeof(data_buffer), crc_key));
 
-    return 0;
-}
+    // return 0;
+// }

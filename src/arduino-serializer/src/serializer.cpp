@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <stdint.h>
 #include <stddef.h>
+#include <chrono> // Required for time units
+#include <thread> // Required for std::this_thread::sleep_fo
 // #include <iostream>
 
 #define PORT_NAME "/dev/ttyACM0"
@@ -77,9 +79,9 @@ static int configure_serial_port(int fd) {
     tcgetattr(fd, &comm_config);
 
     // START OF AI SLOP \\
-    // 1. Set Baud Rate to 38400
-    cfsetispeed(&comm_config, B9600);
-    cfsetospeed(&comm_config, B9600);
+    // 1. Set Baud Rate to 9600
+    cfsetispeed(&comm_config, B38400);
+    cfsetospeed(&comm_config, B38400);
 
     // 2. Control Options (c_cflag)
     comm_config.c_cflag |= (CLOCAL | CREAD); // Enable receiver, ignore modem control lines
@@ -144,6 +146,9 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    // To let connection happen
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
     struct COMMAND_VELOCITY velocity = {1.0f, 0.0f};
     struct COMMAND_VELOCITY received_velocity = {0.0f, 0.0f};
 
@@ -153,33 +158,106 @@ int main(int argc, char ** argv) {
     	memcpy(&serialized_velocity, &velocity, sizeof(struct COMMAND_VELOCITY));
         
         uint8_t crc_checksum = remainder(serialized_velocity, sizeof(serialized_velocity), crc8_key);        
-        printf("%d: \n", i);
 
-        write_serial_port(fd, &start_marker1_cmd_vel, sizeof(uint8_t));
-        write_serial_port(fd, &start_marker2_cmd_vel, sizeof(uint8_t));
-    	int w_success = write_serial_port(fd, &serialized_velocity, sizeof(struct COMMAND_VELOCITY));
-        write_serial_port(fd, &crc_checksum, sizeof(uint8_t));
-        if(w_success < 0) {
-            printf("%s\n", "Write failed!");
+        int w_success1 = write_serial_port(fd, &start_marker1_cmd_vel, sizeof(uint8_t));
+        if(w_success1 < 0) {
+            printf("%s\n", "Write1 failed!");
         } else {
-            printf("%s\n", "Write Succeeded!");
+            printf("%s\n", "Write1 Succeeded!");
             // printf("%d\n", w_success);
             // printf("%f\n", velocity.linear_x);
         }
 
-	    char *received_serialized_velocity[sizeof(struct COMMAND_VELOCITY)];
-	    int r_success = read_serial_port(fd, received_serialized_velocity, 1);
-        if(r_success < 0) {
-            printf("%s\n", "Read failed!");
+        int w_success2 = write_serial_port(fd, &start_marker2_cmd_vel, sizeof(uint8_t));
+        if(w_success2 < 0) {
+            printf("%s\n", "Write2 failed!");
         } else {
-            printf("%s\n", "Read Succeeded!");
-            memcpy(&received_velocity, received_serialized_velocity, sizeof(struct COMMAND_VELOCITY));
-            printf("%d\n", r_success);
-	        printf("%f\n", received_velocity.linear_x);
-	        printf("%f\n", received_velocity.yaw);
+            printf("%s\n", "Write2 Succeeded!");
+            // printf("%d\n", w_success);
+            // printf("%f\n", velocity.linear_x);
         }
 
-        printf("%s", "\n");
+    	int w_success3 = write_serial_port(fd, &serialized_velocity, sizeof(struct COMMAND_VELOCITY));
+        if(w_success3 < 0) {
+            printf("%s\n", "Write3 failed!");
+        } else {
+            printf("%s\n", "Writ3 Succeeded!");
+        }
+
+        int w_success4 = write_serial_port(fd, &crc_checksum, sizeof(uint8_t));
+        if(w_success4 < 0) {
+            printf("%s\n", "Write4 failed!");
+        } else {
+            printf("%s\n", "Write4 Succeeded!");
+        }
+
+        uint8_t received_marker1 = 0;
+	    int r_success1 = read_serial_port(fd, &received_marker1, sizeof(uint8_t));
+        if(r_success1 < 0) {
+            printf("%s\n", "Read1 failed!");
+        } else {
+            printf("%s\n", "Read1 Succeeded!");
+            printf("%d\n", received_marker1);
+        }
+
+        uint8_t received_marker2 = 0;
+	    int r_success2 = read_serial_port(fd, &received_marker2, sizeof(uint8_t));
+        if(r_success2 < 0) {
+            printf("%s\n", "Read2 failed!");
+        } else {
+            printf("%s\n", "Read2 Succeeded!");
+            printf("%d\n", received_marker2);
+        }
+
+        float received_markerA = 0;
+	    int r_successA = read_serial_port(fd, &received_markerA, sizeof(float));
+        if(r_successA < 0) {
+            printf("%s\n", "ReadA failed!");
+        } else {
+            printf("%s\n", "ReadA Succeeded!");
+            printf("%f\n", received_markerA);
+        }
+
+        float received_markerB = 0;
+	    int r_successB = read_serial_port(fd, &received_markerB, sizeof(float));
+        if(r_successB < 0) {
+            printf("%s\n", "ReadB failed!");
+        } else {
+            printf("%s\n", "ReadB Succeeded!");
+            printf("%f\n", received_markerB);
+        }
+
+        uint8_t serialized_received_velocity[sizeof(struct COMMAND_VELOCITY)];
+	    int r_success3 = read_serial_port(
+            fd, 
+            &serialized_received_velocity, 
+            sizeof(struct COMMAND_VELOCITY));
+        if(r_success3 < 0) {
+            printf("%s\n", "Read3 failed!");
+        } else {
+            printf("%s\n", "Read3 Succeeded!");
+            memcpy(
+                &received_velocity, 
+                &serialized_received_velocity, 
+                sizeof(struct COMMAND_VELOCITY));
+            printf("%f\n", received_velocity.linear_x);
+            printf("%f\n", received_velocity.yaw);
+        }
+
+        uint8_t crc_received = 0;
+        int r_success4 = read_serial_port(fd, &received_velocity, sizeof(uint8_t));
+        if(r_success4 < 0) {
+            printf("%s\n", "Read4 failed!");
+        } else {
+            printf("%s\n", "Read4 Succeeded!");
+            printf("%d\n", is_valid(
+                serialized_received_velocity, 
+                sizeof(struct COMMAND_VELOCITY),
+                crc_received,
+                crc8_key));
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
 
     close(fd);
