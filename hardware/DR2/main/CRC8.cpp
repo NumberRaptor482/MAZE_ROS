@@ -1,6 +1,5 @@
 #include "CRC8.h"
 #include "string.h"
-#include <cstdio>
 
 int get_bit(uint8_t data_buffer[], int bit_number) {
     int byte_number = ((int) bit_number / 8.0);
@@ -23,20 +22,20 @@ uint8_t remainder(uint8_t data_buffer[], size_t data_size, uint16_t crc_key) {
 
     for( int i = 0; i < data_bits - 8; i++ ) {
         if(get_bit(data_polynomial, i) == 1) {
-            printf("%d: \n", i);
-            printf("[");
-            for(int k = 0; k < sizeof(data_polynomial); k++) {
-                printf("%d, ", data_polynomial[k]);
-            }
-            printf("]\n");
+            // printf("%d: \n", i);
+            // printf("[");
+            // for(int k = 0; k < sizeof(data_polynomial); k++) {
+            //     printf("%d, ", data_polynomial[k]);
+            // }
+            // printf("]\n");
             for(int j = 8; j >= 0; j--) {
                 xor_bit(data_polynomial, i + (8 - j), (crc_key >> j) & 1);
             }
-            printf("[");
-            for(int k = 0; k < sizeof(data_polynomial); k++) {
-                printf("%d, ", data_polynomial[k]);
-            }
-            printf("]\n");
+            // printf("[");
+            // for(int k = 0; k < sizeof(data_polynomial); k++) {
+            //     printf("%d, ", data_polynomial[k]);
+            // }
+            // printf("]\n");
         }
     }
 
@@ -52,7 +51,7 @@ int main(int argc, char ** argv) {
     // CRC Checksum generated should be
     uint8_t data_buffer[] = {1, 1, 1, 1, 1};
 
-    printf("%d\n", remainder(data_buffer, sizeof(data_buffer), crc_key));
+    // printf("%d\n", remainder(data_buffer, sizeof(data_buffer), crc_key));
 
     return 0;
 }
