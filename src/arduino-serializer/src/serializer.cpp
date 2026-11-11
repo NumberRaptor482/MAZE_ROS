@@ -168,29 +168,6 @@ int main(int argc, char ** argv) {
             // printf("%f\n", velocity.linear_x);
         }
 
-        int w_success2 = write_serial_port(fd, &start_marker2_cmd_vel, sizeof(uint8_t));
-        if(w_success2 < 0) {
-            printf("%s\n", "Write2 failed!");
-        } else {
-            printf("%s\n", "Write2 Succeeded!");
-            // printf("%d\n", w_success);
-            // printf("%f\n", velocity.linear_x);
-        }
-
-    	int w_success3 = write_serial_port(fd, &serialized_velocity, sizeof(struct COMMAND_VELOCITY));
-        if(w_success3 < 0) {
-            printf("%s\n", "Write3 failed!");
-        } else {
-            printf("%s\n", "Writ3 Succeeded!");
-        }
-
-        int w_success4 = write_serial_port(fd, &crc_checksum, sizeof(uint8_t));
-        if(w_success4 < 0) {
-            printf("%s\n", "Write4 failed!");
-        } else {
-            printf("%s\n", "Write4 Succeeded!");
-        }
-
         uint8_t received_marker1 = 0;
 	    int r_success1 = read_serial_port(fd, &received_marker1, sizeof(uint8_t));
         if(r_success1 < 0) {
@@ -200,6 +177,15 @@ int main(int argc, char ** argv) {
             printf("%d\n", received_marker1);
         }
 
+        int w_success2 = write_serial_port(fd, &start_marker2_cmd_vel, sizeof(uint8_t));
+        if(w_success2 < 0) {
+            printf("%s\n", "Write2 failed!");
+        } else {
+            printf("%s\n", "Write2 Succeeded!");
+            // printf("%d\n", w_success);
+            // printf("%f\n", velocity.linear_x);
+        }
+
         uint8_t received_marker2 = 0;
 	    int r_success2 = read_serial_port(fd, &received_marker2, sizeof(uint8_t));
         if(r_success2 < 0) {
@@ -207,6 +193,13 @@ int main(int argc, char ** argv) {
         } else {
             printf("%s\n", "Read2 Succeeded!");
             printf("%d\n", received_marker2);
+        }
+
+    	int w_success3 = write_serial_port(fd, &serialized_velocity, sizeof(struct COMMAND_VELOCITY));
+        if(w_success3 < 0) {
+            printf("%s\n", "Write3 failed!");
+        } else {
+            printf("%s\n", "Writ3 Succeeded!");
         }
 
         float received_markerA = 0;
@@ -242,6 +235,13 @@ int main(int argc, char ** argv) {
                 sizeof(struct COMMAND_VELOCITY));
             printf("%f\n", received_velocity.linear_x);
             printf("%f\n", received_velocity.yaw);
+        }
+
+        int w_success4 = write_serial_port(fd, &crc_checksum, sizeof(uint8_t));
+        if(w_success4 < 0) {
+            printf("%s\n", "Write4 failed!");
+        } else {
+            printf("%s\n", "Write4 Succeeded!");
         }
 
         uint8_t crc_received = 0;

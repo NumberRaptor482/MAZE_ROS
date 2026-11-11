@@ -3,7 +3,7 @@
 
 DiffDriveKinematics::DiffDriveKinematics(float ptrack_width_m, float pmax_wheel_speed_mps) {
     mtrack_width_m = ptrack_width_m;
-    mmax_wheel_speed_mps = pmax_wheel_speed_mps;
+    max_wheel_speed_mps = pmax_wheel_speed_mps;
 }
 
 float DiffDriveKinematics::get_top_wheel_velocity_mps(WHEEL_VELOCITIES wheel_velocities) {
@@ -50,6 +50,10 @@ DiffDriveKinematics::DRIVE_VELOCITIES DiffDriveKinematics::inverse_kinematics(
         return {linear_mps, omega_radiansps};
 }
 
-double DiffDriveKinematics::get_track_width_m() {
+float DiffDriveKinematics::get_track_width_m() {
     return mtrack_width_m;
+}
+
+float DiffDriveKinematics::get_max_wheel_speed() {
+    return max_wheel_speed_mps;
 }

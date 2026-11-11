@@ -21,11 +21,13 @@ public:
 
     WHEEL_VELOCITIES saturate_wheel_velocities(WHEEL_VELOCITIES wheel_velocities);
 
-    double get_track_width_m();
+    float get_track_width_m();
+
+    float get_max_wheel_speed();
 
 private:
     float mtrack_width_m;
-    float mmax_wheel_speed_mps;
+    float max_wheel_speed_mps;
 
     float get_top_wheel_velocity_mps(WHEEL_VELOCITIES wheel_velocities);
 };
