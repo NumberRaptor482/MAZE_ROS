@@ -362,11 +362,11 @@ void turn_pid() {
 
 void loop() {
     // set_left_motor_output(1.0);
-    analogWrite(leftForwardPWM, 0);
-    analogWrite(leftBackwardPWM, 255);
+    analogWrite(leftForwardPWM, 255);
+    analogWrite(leftBackwardPWM, 0);
     // set_right_motor_output(1.0);
 
-    analogWrite(rightForwardPWM, 255);
+    analogWrite(rightForwardPWM, 192);
     analogWrite(rightBackwardPWM, 0);
 
     // update_cmd_vel_from_serial();
