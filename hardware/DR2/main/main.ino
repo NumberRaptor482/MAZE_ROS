@@ -15,25 +15,27 @@ struct COMMAND_VELOCITY {
 int status_led_pin = LED_BUILTIN;
 
 // //////////////////// READING ENCODER DATA(Needs to be abstracted) ////////////////
-int system_frequency_hz = 50;
+int system_frequency_hz = 1;
 float wheel_radius_m = 0.1;
 
 bool directionLeft = true;
 int durationLeft = 0;
 int encoderLeftPinA = 3;
-int encoderLeftPinALast = 2;
+int encoderLeftInterruptPinA = encoderLeftPinA - 2;
+bool encoderLeftPinALast = true;
 int encoderLeftPinB = 7;
 float wheelSpeedLeftRadiansPS = 0;
 
 void encoderInitLeft() {
     directionLeft = true;//default -> Forward  
-    pinMode(encoderLeftPinB,INPUT);  
+    pinMode(encoderLeftPinA, INPUT);
+    pinMode(encoderLeftPinB, INPUT);
     attachInterrupt(0, wheelSpeedLeftUpdate, CHANGE);
 }
 
 void wheelSpeedLeftUpdate() {
     int Lstate = digitalRead(encoderLeftPinA);
-    if((encoderLeftPinALast == LOW) && Lstate==HIGH) {
+    if( ( encoderLeftPinALast == LOW ) && ( Lstate == HIGH) ) {
         int val = digitalRead(encoderLeftPinB);
         if(val == LOW && directionLeft) {
             directionLeft = false; //Reverse
@@ -46,7 +48,6 @@ void wheelSpeedLeftUpdate() {
 
     if(!directionLeft)  durationLeft++;
     else  durationLeft--;
-    wheelSpeedLeftRadiansPS = durationLeft * 2.0 * PI / 64.0;
 }
 
 float get_left_motor_speed_mps() {
@@ -56,14 +57,16 @@ float get_left_motor_speed_mps() {
 bool directionRight = true;
 int durationRight = 0;
 int encoderRightPinA = 2;
+int encoderRightInterruptPinA = encoderRightPinA - 2;
 int encoderRightPinALast = 2;
 int encoderRightPinB = 4;
 float wheelSpeedRightRadiansPS = 0;
 
 void encoderInitRight() {
     directionRight = true;//default -> Forward  
-    pinMode(encoderRightPinB,INPUT);  
-    attachInterrupt(1, wheelSpeedRightUpdate, CHANGE);
+    pinMode(encoderRightPinA, INPUT);
+    pinMode(encoderRightPinB, INPUT);
+    attachInterrupt(encoderRightInterruptPinA, wheelSpeedRightUpdate, CHANGE);
 }
 
 void wheelSpeedRightUpdate() {
@@ -81,7 +84,6 @@ void wheelSpeedRightUpdate() {
 
     if(!directionRight)  durationRight++;
     else  durationRight--;
-    wheelSpeedRightRadiansPS = durationRight * 2.0 * PI / 64.0;
 }
 
 float get_right_motor_speed_mps() {
@@ -89,6 +91,8 @@ float get_right_motor_speed_mps() {
 }
 
 void reset_encoder_duration() {
+    wheelSpeedLeftRadiansPS = durationLeft * 2.0 * PI / (32.0 * system_frequency_hz);
+    wheelSpeedRightRadiansPS = durationRight * 2.0 * PI / (32.0 * system_frequency_hz);
     durationLeft = 0;
     durationRight = 0;
 }
@@ -119,58 +123,69 @@ void init_motors() {
     pinMode( rightBackwardPWM, OUTPUT );
 } 
 
-
-void set_left_motor_pwm(int pwm_output) {
-    if(pwm_output < 0) {
+// Takes in value between -255 and 255(inclusive)
+void set_left_motor_pwm(int pwm) {
+    if(pwm < 0) {
         analogWrite(leftForwardPWM, 0);
-        analogWrite(leftBackwardPWM, -pwm_output);
+        analogWrite(leftBackwardPWM, -pwm);
     } else {
-        analogWrite(leftForwardPWM, pwm_output);
+        analogWrite(leftForwardPWM, pwm);
         analogWrite(leftBackwardPWM, 0);
     }
 }
 
-void set_right_motor_pwm(int pwm_output) {
-    if(pwm_output < 0) {
+// Takes in value between -1 and 1
+void set_left_motor_output(float output) {
+    set_left_motor_pwm(
+        (int) (255 * output)
+    );
+}
+
+// Takes in value between -255 and 255
+void set_right_motor_pwm(int pwm) {
+    if(pwm < 0) {
         analogWrite(rightForwardPWM, 0);
-        analogWrite(rightBackwardPWM, -pwm_output);
+        analogWrite(rightBackwardPWM, -pwm);
     } else {
-        analogWrite(rightForwardPWM, pwm_output);
+        analogWrite(rightForwardPWM, pwm);
         analogWrite(rightBackwardPWM, 0);
     }
 }
 
-// void control_from_command_velocity(COMMAND_VELOCITY command_velocity) {
-//     DiffDriveKinematics::WHEEL_VELOCITIES reference_wheel_velocities = 
-//         kinematics.forward_kinematics(
-//             {command_velocity.linear_x, 
-//              command_velocity.yaw_radiansps});
+// Takes in value between -1 and 1
+void set_right_motor_output(float output) {
+    set_right_motor_pwm(
+        (int) (255 * output)
+    );
+}
 
-//     reference_wheel_velocities = kinematics.saturate_wheel_velocities(reference_wheel_velocities);
+void control_from_command_velocity(COMMAND_VELOCITY command_velocity) {
+    DiffDriveKinematics::WHEEL_VELOCITIES reference_wheel_velocities = 
+        kinematics.forward_kinematics(
+            {command_velocity.linear_x, 
+             command_velocity.yaw_radiansps});
 
-//     set_left_motor_pwm( (int) 
-//         (min(
-//             left_velocity_controller.calculate(
-//                 reference_wheel_velocities.left_linear_mps,
-//                 get_right_motor_speed_mps()),
-//             kinematics.get_max_wheel_speed()) 
-//             * 
-//         ( 255.0 
-//             / 
-//             kinematics.get_max_wheel_speed() )));
+    reference_wheel_velocities = kinematics.saturate_wheel_velocities(reference_wheel_velocities);
 
-//     set_right_motor_pwm( (int) 
-//         (min(
-//             right_velocity_controller.calculate(
-//                 reference_wheel_velocities.right_linear_mps,
-//                 get_right_motor_speed_mps()),
-//             kinematics.get_max_wheel_speed()) 
-//             * 
-//         ( 255.0 
-//             / 
-//             kinematics.get_max_wheel_speed() )));
+    float left_pid_output = left_velocity_controller.calculate(
+        reference_wheel_velocities.left_linear_mps,
+        get_left_motor_speed_mps());
 
-// }
+    float right_pid_output = right_velocity_controller.calculate(
+        reference_wheel_velocities.right_linear_mps,
+        get_right_motor_speed_mps());
+
+    set_left_motor_pwm( (int) 
+        min(
+            abs(left_pid_output),
+            kinematics.get_max_wheel_speed()));
+
+    set_right_motor_pwm( (int) 
+        min(
+            abs(left_pid_output),
+            kinematics.get_max_wheel_speed()));
+
+}
 
 // //////////////////// READING INPUT COMMAND ////////////////
 static const uint8_t start_marker1_cmd_vel = 0xAA;
@@ -271,6 +286,13 @@ void setup() {
     // digitalWrite(status_led_pin, LOW);
 }
 
+void led_test() {
+    digitalWrite(status_led_pin, HIGH);
+    delay(1000);
+    digitalWrite(status_led_pin, LOW);
+    delay(1000);
+}
+
 void motor_test() {
     set_left_motor_pwm(255);
     set_right_motor_pwm(255);
@@ -285,26 +307,36 @@ void encoder_test() {
 }
 
 
+void square_routine(unsigned long start_time) {
+    for(int i = 0; i < 4; i++) {
+        // Forward
+        analogWrite(leftForwardPWM, 255);
+        analogWrite(leftBackwardPWM, 0);
+
+        analogWrite(rightForwardPWM, 255);
+        analogWrite(rightBackwardPWM, 0);
+        delay(5000);
+
+        // Turn
+        analogWrite(leftForwardPWM, 96);
+        analogWrite(leftBackwardPWM, 0);
+
+        analogWrite(rightForwardPWM, 0);
+        analogWrite(rightBackwardPWM, 96);
+        delay(5000);
+    }
+}
+
 void loop() {
-    // digitalWrite(status_led_pin, HIGH);
-    // delay(1000);
-    // digitalWrite(status_led_pin, LOW);
-    // delay(1000);
     // update_cmd_vel_from_serial();
 
-    // latest_command_velocity = {1.0, 0.0};
-    // control_from_command_velocity(latest_command_velocity);
-    analogWrite(leftForwardPWM, 128);
-    analogWrite(leftBackwardPWM, 0);
+    led_test();
 
-    analogWrite(rightForwardPWM, 255);
-    analogWrite(rightBackwardPWM, 0);
-    // motor_test();
-    encoder_test();
+    // square_routine();
 
-    // analogWrite(leftForwardPWM, 128);
 
-    reset_encoder_duration();
-    delay(1000);
+    // encoder_test();
+    // reset_encoder_duration();
+    // delay(1000 / system_frequency_hz);
 }
 
