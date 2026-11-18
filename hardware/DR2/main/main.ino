@@ -15,16 +15,16 @@ struct COMMAND_VELOCITY {
 int status_led_pin = LED_BUILTIN;
 
 // //////////////////// READING ENCODER DATA(Needs to be abstracted) ////////////////
-int system_frequency_hz = 1;
+int system_frequency_hz = 50;
 float wheel_radius_m = 0.06;
 
-bool directionLeft = true;
-int durationLeft = 0;
-int encoderLeftPinA = 3;
-int encoderLeftInterruptPinA = encoderLeftPinA - 2;
-bool encoderLeftPinALastState = true;
-int encoderLeftPinB = 7;
-float wheelSpeedLeftRadiansPS = 0;
+volatile bool directionLeft = true;
+volatile int durationLeft = 0;
+volatile int encoderLeftPinA = 3;
+volatile int encoderLeftInterruptPinA = encoderLeftPinA - 2;
+volatile bool encoderLeftPinALastState = true;
+volatile int encoderLeftPinB = 7;
+volatile float wheelSpeedLeftRadiansPS = 0;
 
 void encoderInitLeft() {
     directionLeft = true;//default -> Forward  
@@ -54,13 +54,13 @@ float get_left_motor_speed_mps() {
     return wheelSpeedLeftRadiansPS * wheel_radius_m;
 }
 
-bool directionRight = true;
-int durationRight = 0;
-int encoderRightPinA = 2;
-int encoderRightInterruptPinA = encoderRightPinA - 2;
-bool encoderRightPinALast = true;
-int encoderRightPinB = 4;
-float wheelSpeedRightRadiansPS = 0;
+volatile bool directionRight = true;
+volatile int durationRight = 0;
+volatile int encoderRightPinA = 2;
+volatile int encoderRightInterruptPinA = encoderRightPinA - 2;
+volatile bool encoderRightPinALast = true;
+volatile int encoderRightPinB = 4;
+volatile float wheelSpeedRightRadiansPS = 0;
 
 void encoderInitRight() {
     directionRight = true;//default -> Forward  
@@ -91,8 +91,8 @@ float get_right_motor_speed_mps() {
 }
 
 void reset_encoder_duration() {
-    wheelSpeedLeftRadiansPS = durationLeft * 2.0 * PI / (50 * 32.0 * system_frequency_hz);
-    wheelSpeedRightRadiansPS = durationRight * 2.0 * PI / (50 * 32.0 * system_frequency_hz);
+    wheelSpeedLeftRadiansPS = (durationLeft * 2.0 * PI * system_frequency_hz) / (50 * 32.0);
+    wheelSpeedRightRadiansPS = (durationRight * 2.0 * PI * system_frequency_hz) / (50 * 32.0);
     durationLeft = 0;
     durationRight = 0;
 }
@@ -207,6 +207,24 @@ void control_wheels(float left_wheel_mps, float right_wheel_mps) {
 
 }
 
+float output_trapezoid_accel(float max_output, float accel_time_s, float current_time_s) {
+    return (max_output / accel_time_s) * min(current_time_s, accel_time_s);
+}
+
+float output_trapezoid_decel(float max_output, float decel_time_s, float current_time_s) {
+    return max_output - output_trapezoid_accel(max_output, decel_time_s, current_time_s);
+}
+
+float output_trapezoid_profile(float max_output, float accel_time_s, float max_time_s, float decel_time_s, float current_time_s) {
+    if( current_time_s >= 0.0 and current_time_s < accel_time_s) {
+        return output_trapezoid_accel(max_output, accel_time_s, current_time_s);
+    } else if(current_time_s >= accel_time_s and current_time_s < max_time_s + accel_time_s) {
+        return max_output;
+    } else {
+        return output_trapezoid_decel(max_output, decel_time_s, current_time_s - max_time_s - accel_time_s);
+    }
+}
+
 // //////////////////// READING INPUT COMMAND ////////////////
 static const uint8_t start_marker1_cmd_vel = 0xAA;
 static const uint8_t start_marker2_cmd_vel = 0x55;
@@ -293,10 +311,53 @@ void update_cmd_vel_from_serial() {
     }
 }
 
+
+unsigned long start_time_ms = 10000;
+unsigned long step_1_linear_ms = 6000;
+unsigned long step_2_rotation_ms = 500;
+unsigned long step_3_linear_ms = 6000;
+unsigned long step_4_rotation_ms = 500;
+unsigned long step_5_linear_ms = 6000;
+unsigned long step_6_rotation_ms = 500;
+unsigned long step_7_linear_ms = 2200;
+unsigned long step_8_rotation_ms = 500;
+unsigned long step_9_linear_ms = 2200;
+unsigned long step_10_rotation_ms = 500;
+unsigned long step_11_linear_ms = 2200;
+unsigned long step_12_rotation_ms = 500;
+unsigned long step_13_linear_ms = 2200;
+
+unsigned long time_deltas_ms[] = {
+    start_time_ms,
+    step_1_linear_ms,
+    step_2_rotation_ms,
+    step_3_linear_ms,
+    step_4_rotation_ms,
+    step_5_linear_ms,
+    step_6_rotation_ms,
+    step_7_linear_ms,
+    step_8_rotation_ms,
+    step_9_linear_ms,
+    step_10_rotation_ms,
+    step_11_linear_ms,
+    step_12_rotation_ms,
+    step_13_linear_ms
+};
+
+unsigned long time_stamps_ms[15];
+
 void setup() {
     Serial.begin(38400);
     while (!Serial);
-    // Serial.println("Program Version 1.0 - Loaded");
+
+    for (int i = 0; i < sizeof(time_stamps_ms) / sizeof(unsigned long); i++) {
+        if(i == 0) {
+            time_stamps_ms[i] = 0;
+        } else {
+            time_stamps_ms[i] = time_stamps_ms[i-1] + time_deltas_ms[i-1];
+        }
+        Serial.println(time_stamps_ms[i]);
+    }
 
     encoderInitLeft();
     encoderInitRight();
@@ -361,30 +422,99 @@ void turn_pid() {
 }
 
 void loop() {
-    // set_left_motor_output(1.0);
-    analogWrite(leftForwardPWM, 255);
-    analogWrite(leftBackwardPWM, 0);
-    // set_right_motor_output(1.0);
+    unsigned int time_zone = millis() % time_stamps_ms[15];
+    float time_s = time_zone / 1000.0;
 
-    analogWrite(rightForwardPWM, 192);
-    analogWrite(rightBackwardPWM, 0);
+    float left_output = 0.0f;
+    float right_output = 0.0f;
 
-    // update_cmd_vel_from_serial();
+    if (time_zone >= time_stamps_ms[0] and time_zone < time_stamps_ms[1]) {
 
-    // led_test();
+    } else if(time_zone >= time_stamps_ms[1] and time_zone < time_stamps_ms[2]) {
+        float accel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[1] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
+        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[1] / 1000.0);
+        right_output = left_output;
+    } else if(time_zone >= time_stamps_ms[2] and time_zone < time_stamps_ms[3]) {
+        float accel_ts = 0.4 * time_deltas_ms[2] / 1000.0;
+        float maxo_ts = 0.50 * time_deltas_ms[2] / 1000.0;
+        float decel_ts = 0.25 * time_deltas_ms[2] / 1000.0;
+        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[2] / 1000.0);
+        right_output = -left_output;
+    } else if(time_zone >= time_stamps_ms[3] and time_zone < time_stamps_ms[4]) {
+        float accel_ts = 0.4 * time_deltas_ms[3] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[3] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[3] / 1000.0;
+        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[3] / 1000.0);
+        right_output = left_output;
+    } else if(time_zone >= time_stamps_ms[4] and time_zone < time_stamps_ms[5]) {
+        float accel_ts = 0.25 * time_deltas_ms[4] / 1000.0;
+        float maxo_ts = 0.50 * time_deltas_ms[4] / 1000.0;
+        float decel_ts = 0.25 * time_deltas_ms[4] / 1000.0;
+        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[4] / 1000.0);
+        right_output = -left_output;
+    } else if(time_zone >= time_stamps_ms[5] and time_zone < time_stamps_ms[6]) {
+        float accel_ts = 0.4 * time_deltas_ms[5] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[5] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[5] / 1000.0;
+        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[5] / 1000.0);
+        right_output = left_output;
+    } else if(time_zone >= time_stamps_ms[6] and time_zone < time_stamps_ms[7]) {
+        float accel_ts = 0.25 * time_deltas_ms[6] / 1000.0;
+        float maxo_ts = 0.50 * time_deltas_ms[6] / 1000.0;
+        float decel_ts = 0.25 * time_deltas_ms[6] / 1000.0;
+        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[6] / 1000.0);
+        right_output = -left_output;
+    } else if(time_zone >= time_stamps_ms[7] and time_zone < time_stamps_ms[8]) {
+        float accel_ts = 0.4 * time_deltas_ms[7] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[7] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[7] / 1000.0;
+        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[7] / 1000.0);
+        right_output = left_output;
+    } else if(time_zone >= time_stamps_ms[8] and time_zone < time_stamps_ms[9]) {
+        float accel_ts = 0.25 * time_deltas_ms[8] / 1000.0;
+        float maxo_ts = 0.50 * time_deltas_ms[8] / 1000.0;
+        float decel_ts = 0.25 * time_deltas_ms[8] / 1000.0;
+        left_output = output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[8] / 1000.0);
+        right_output = -left_output;
+    } else if(time_zone >= time_stamps_ms[9] and time_zone < time_stamps_ms[10]) {
+        float accel_ts = 0.4 * time_deltas_ms[9] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[9] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[9] / 1000.0;
+        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[9] / 1000.0);
+        right_output = left_output;
+    } else if(time_zone >= time_stamps_ms[10] and time_zone < time_stamps_ms[11]) {
+        float accel_ts = 0.25 * time_deltas_ms[10] / 1000.0;
+        float maxo_ts = 0.50 * time_deltas_ms[10] / 1000.0;
+        float decel_ts = 0.25 * time_deltas_ms[10] / 1000.0;
+        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[10] / 1000.0);
+        right_output = -left_output;
+    } else if(time_zone >= time_stamps_ms[11] and time_zone < time_stamps_ms[12]) {
+        float accel_ts = 0.4 * time_deltas_ms[11] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[11] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[11] / 1000.0;
+        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[11] / 1000.0);
+        right_output = left_output;
+    } else if(time_zone >= time_stamps_ms[12] and time_zone < time_stamps_ms[13]) {
+        float accel_ts = 0.25 * time_deltas_ms[12] / 1000.0;
+        float maxo_ts = 0.50 * time_deltas_ms[12] / 1000.0;
+        float decel_ts = 0.25 * time_deltas_ms[12] / 1000.0;
+        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[12] / 1000.0);
+        right_output = -left_output;
+    } else if(time_zone >= time_stamps_ms[13] and time_zone < time_stamps_ms[14]) {
+        float accel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[1] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
+        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[13] / 1000.0);
+        right_output = left_output;
+    }
 
+    set_left_motor_output(left_output);
+    set_right_motor_output(right_output);
+    
 
-    // unsigned long routine_time = 1200;
-    // unsigned long time_zone = millis() % routine_time;
-
-    // if(time_zone < 1000) {
-    //     forward_pid();
-    // } else if(time_zone < routine_time) {
-    //     turn_pid();
-    // }
-
-
-    encoder_test();
+    // encoder_test();
     reset_encoder_duration();
     delay(1000 / system_frequency_hz);
 }
