@@ -15,7 +15,7 @@ struct COMMAND_VELOCITY {
 int status_led_pin = LED_BUILTIN;
 
 // //////////////////// READING ENCODER DATA(Needs to be abstracted) ////////////////
-int system_frequency_hz = 50;
+int system_frequency_hz = 250;
 float wheel_radius_m = 0.06;
 
 volatile bool directionLeft = true;
@@ -312,39 +312,52 @@ void update_cmd_vel_from_serial() {
 }
 
 
-unsigned long start_time_ms = 10000;
-unsigned long step_1_linear_ms = 6000;
-unsigned long step_2_rotation_ms = 500;
-unsigned long step_3_linear_ms = 6000;
-unsigned long step_4_rotation_ms = 500;
-unsigned long step_5_linear_ms = 6000;
-unsigned long step_6_rotation_ms = 500;
-unsigned long step_7_linear_ms = 2200;
-unsigned long step_8_rotation_ms = 500;
-unsigned long step_9_linear_ms = 2200;
-unsigned long step_10_rotation_ms = 500;
-unsigned long step_11_linear_ms = 2200;
-unsigned long step_12_rotation_ms = 500;
-unsigned long step_13_linear_ms = 2200;
+unsigned long start_time_ms = 5000;
+unsigned long brake_time_ms = 1000;
+unsigned long step_1_linear_ms = 4000;
+unsigned long step_2_rotation_ms = 1400;
+unsigned long step_3_linear_ms = 4000;
+unsigned long step_4_rotation_ms = 1550;
+unsigned long step_5_linear_ms = 4000;
+unsigned long step_6_rotation_ms = 1550;
+unsigned long step_7_linear_ms = 1875;
+unsigned long step_8_rotation_ms = 1400;
+unsigned long step_9_linear_ms = 2150;
+unsigned long step_10_rotation_ms = 1550;
+unsigned long step_11_linear_ms = 2225;
+unsigned long step_12_rotation_ms = 1550;
+unsigned long step_13_linear_ms = 1980;
 
 unsigned long time_deltas_ms[] = {
     start_time_ms,
     step_1_linear_ms,
+    brake_time_ms,
     step_2_rotation_ms,
+    brake_time_ms,
     step_3_linear_ms,
+    brake_time_ms,
     step_4_rotation_ms,
+    brake_time_ms,
     step_5_linear_ms,
+    brake_time_ms,
     step_6_rotation_ms,
+    brake_time_ms,
     step_7_linear_ms,
+    brake_time_ms,
     step_8_rotation_ms,
+    brake_time_ms,
     step_9_linear_ms,
+    brake_time_ms,
     step_10_rotation_ms,
+    brake_time_ms,
     step_11_linear_ms,
+    brake_time_ms,
     step_12_rotation_ms,
+    brake_time_ms,
     step_13_linear_ms
 };
 
-unsigned long time_stamps_ms[15];
+unsigned long time_stamps_ms[sizeof(time_deltas_ms) / sizeof(long)];
 
 void setup() {
     Serial.begin(38400);
@@ -421,6 +434,31 @@ void turn_pid() {
     control_wheels(1.0, 1.0);
 }
 
+void rotate_left_maze(int i) {
+    float accel_ts = 0.4 * time_deltas_ms[i] / 1000.0;
+    float maxo_ts = 0.50 * time_deltas_ms[i] / 1000.0;
+    float decel_ts = 0.25 * time_deltas_ms[i] / 1000.0;
+    left_output = -output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[i] / 1000.0);
+    right_output = -left_output;
+}
+
+void rotate_right_maze(int i) {
+    float accel_ts = 0.4 * time_deltas_msi[i] / 1000.0;
+    float maxo_ts = 0.50 * time_deltas_ms[i] / 1000.0;
+    float decel_ts = 0.25 * time_deltas_ms[i] / 1000.0;
+    left_output = -output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[i] / 1000.0);
+    right_output = left_output;
+}
+
+void forward_maze(int i) {
+    float accel_ts = 0.4 * time_deltas_ms[i] / 1000.0;
+    float maxo_ts = 0.2 * time_deltas_ms[i] / 1000.0;
+    float decel_ts = 0.4 * time_deltas_ms[i] / 1000.0;
+    left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[i] / 1000.0);
+    right_output = left_output;
+}
+
+
 void loop() {
     unsigned int time_zone = millis() % time_stamps_ms[15];
     float time_s = time_zone / 1000.0;
@@ -431,18 +469,14 @@ void loop() {
     if (time_zone >= time_stamps_ms[0] and time_zone < time_stamps_ms[1]) {
 
     } else if(time_zone >= time_stamps_ms[1] and time_zone < time_stamps_ms[2]) {
-        float accel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
-        float maxo_ts = 0.2 * time_deltas_ms[1] / 1000.0;
-        float decel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
-        left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[1] / 1000.0);
-        right_output = left_output;
-    } else if(time_zone >= time_stamps_ms[2] and time_zone < time_stamps_ms[3]) {
-        float accel_ts = 0.4 * time_deltas_ms[2] / 1000.0;
-        float maxo_ts = 0.50 * time_deltas_ms[2] / 1000.0;
-        float decel_ts = 0.25 * time_deltas_ms[2] / 1000.0;
-        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[2] / 1000.0);
-        right_output = -left_output;
+        forward_maze(1);
+    } else if(time_zone >= time_stamps_ms[2] and time_zone < time_stamps_ms[3]) { 
+    
     } else if(time_zone >= time_stamps_ms[3] and time_zone < time_stamps_ms[4]) {
+        rotate_left_maze(3)
+    } else if(time_zone >= time_stamps_ms[4] and time_zone < time_stamps_ms[5]) {
+
+    } else if(time_zone >= time_stamps_ms[4] and time_zone < time_stamps_ms[5]) {
         float accel_ts = 0.4 * time_deltas_ms[3] / 1000.0;
         float maxo_ts = 0.2 * time_deltas_ms[3] / 1000.0;
         float decel_ts = 0.4 * time_deltas_ms[3] / 1000.0;
@@ -452,7 +486,7 @@ void loop() {
         float accel_ts = 0.25 * time_deltas_ms[4] / 1000.0;
         float maxo_ts = 0.50 * time_deltas_ms[4] / 1000.0;
         float decel_ts = 0.25 * time_deltas_ms[4] / 1000.0;
-        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[4] / 1000.0);
+        left_output = -output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[4] / 1000.0);
         right_output = -left_output;
     } else if(time_zone >= time_stamps_ms[5] and time_zone < time_stamps_ms[6]) {
         float accel_ts = 0.4 * time_deltas_ms[5] / 1000.0;
@@ -464,7 +498,7 @@ void loop() {
         float accel_ts = 0.25 * time_deltas_ms[6] / 1000.0;
         float maxo_ts = 0.50 * time_deltas_ms[6] / 1000.0;
         float decel_ts = 0.25 * time_deltas_ms[6] / 1000.0;
-        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[6] / 1000.0);
+        left_output = -output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[6] / 1000.0);
         right_output = -left_output;
     } else if(time_zone >= time_stamps_ms[7] and time_zone < time_stamps_ms[8]) {
         float accel_ts = 0.4 * time_deltas_ms[7] / 1000.0;
@@ -476,7 +510,7 @@ void loop() {
         float accel_ts = 0.25 * time_deltas_ms[8] / 1000.0;
         float maxo_ts = 0.50 * time_deltas_ms[8] / 1000.0;
         float decel_ts = 0.25 * time_deltas_ms[8] / 1000.0;
-        left_output = output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[8] / 1000.0);
+        left_output = output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[8] / 1000.0);
         right_output = -left_output;
     } else if(time_zone >= time_stamps_ms[9] and time_zone < time_stamps_ms[10]) {
         float accel_ts = 0.4 * time_deltas_ms[9] / 1000.0;
@@ -488,7 +522,7 @@ void loop() {
         float accel_ts = 0.25 * time_deltas_ms[10] / 1000.0;
         float maxo_ts = 0.50 * time_deltas_ms[10] / 1000.0;
         float decel_ts = 0.25 * time_deltas_ms[10] / 1000.0;
-        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[10] / 1000.0);
+        left_output = -output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[10] / 1000.0);
         right_output = -left_output;
     } else if(time_zone >= time_stamps_ms[11] and time_zone < time_stamps_ms[12]) {
         float accel_ts = 0.4 * time_deltas_ms[11] / 1000.0;
@@ -500,12 +534,12 @@ void loop() {
         float accel_ts = 0.25 * time_deltas_ms[12] / 1000.0;
         float maxo_ts = 0.50 * time_deltas_ms[12] / 1000.0;
         float decel_ts = 0.25 * time_deltas_ms[12] / 1000.0;
-        left_output = -output_trapezoid_profile(0.395, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[12] / 1000.0);
+        left_output = -output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[12] / 1000.0);
         right_output = -left_output;
     } else if(time_zone >= time_stamps_ms[13] and time_zone < time_stamps_ms[14]) {
-        float accel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
-        float maxo_ts = 0.2 * time_deltas_ms[1] / 1000.0;
-        float decel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
+        float accel_ts = 0.4 * time_deltas_ms[13] / 1000.0;
+        float maxo_ts = 0.2 * time_deltas_ms[13] / 1000.0;
+        float decel_ts = 0.4 * time_deltas_ms[13] / 1000.0;
         left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[13] / 1000.0);
         right_output = left_output;
     }
