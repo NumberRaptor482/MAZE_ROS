@@ -311,6 +311,7 @@ void update_cmd_vel_from_serial() {
     }
 }
 
+// TIMESSS
 unsigned long start_time_ms = 5000;
 unsigned long brake_time_ms = 100;
 unsigned long step_1_linear_ms = 4000;
@@ -465,18 +466,21 @@ void loop() {
     float left_output = 0.0f;
     float right_output = 0.0f;
 
+    // SPEEDSS
     if (time_zone >= time_stamps_ms[0] and time_zone < time_stamps_ms[1]) {
 
     } else if(time_zone >= time_stamps_ms[1] and time_zone < time_stamps_ms[2]) {
         float accel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
         float maxo_ts = 0.2 * time_deltas_ms[1] / 1000.0;
         float decel_ts = 0.4 * time_deltas_ms[1] / 1000.0;
+        // SPEED IS 0.3
         left_output = output_trapezoid_profile(0.3, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[1] / 1000.0);
         right_output = left_output;
     }else if(time_zone >= time_stamps_ms[2] and time_zone < time_stamps_ms[3]) {
         float accel_ts = 0.25 * time_deltas_ms[2] / 1000.0;
         float maxo_ts = 0.50 * time_deltas_ms[2] / 1000.0;
         float decel_ts = 0.25 * time_deltas_ms[2] / 1000.0;
+        // SPEED IS 0.13
         left_output = -output_trapezoid_profile(0.13, accel_ts, maxo_ts, decel_ts, time_s - time_stamps_ms[2] / 1000.0);
         right_output = -left_output;
     } else if(time_zone >= time_stamps_ms[3] and time_zone < time_stamps_ms[4]) {
