@@ -311,21 +311,20 @@ void update_cmd_vel_from_serial() {
     }
 }
 
-
 unsigned long start_time_ms = 5000;
-unsigned long brake_time_ms = 1000;
+unsigned long brake_time_ms = 100;
 unsigned long step_1_linear_ms = 4000;
-unsigned long step_2_rotation_ms = 1400;
+unsigned long step_2_rotation_ms = 1400 + 50;
 unsigned long step_3_linear_ms = 4000;
-unsigned long step_4_rotation_ms = 1550;
+unsigned long step_4_rotation_ms = 1550 + 50;
 unsigned long step_5_linear_ms = 4000;
-unsigned long step_6_rotation_ms = 1550;
+unsigned long step_6_rotation_ms = 1550 + 50;
 unsigned long step_7_linear_ms = 1875;
-unsigned long step_8_rotation_ms = 1400;
+unsigned long step_8_rotation_ms = 1400 + 50;
 unsigned long step_9_linear_ms = 2150;
-unsigned long step_10_rotation_ms = 1550;
+unsigned long step_10_rotation_ms = 1550 + 50;
 unsigned long step_11_linear_ms = 2225;
-unsigned long step_12_rotation_ms = 1550;
+unsigned long step_12_rotation_ms = 1550 + 50;
 unsigned long step_13_linear_ms = 1980;
 
 unsigned long time_deltas_ms[] = {
